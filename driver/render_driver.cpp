@@ -144,7 +144,7 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName)
     VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {};
     rasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizationStateCreateInfo.depthClampEnable = VK_FALSE;                   // 超出深度范围裁剪而不是 clamp
-    rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;            // 不丢弃几何体
+    rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_TRUE;             // 不丢弃几何体
     rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;            // 填充多边形方式点、线、面
     rasterizationStateCreateInfo.lineWidth = 1.0f;                              // 线宽
     rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;              // 背面剔除，可改 NONE 或 FRONT
@@ -169,7 +169,7 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName)
     colorBlendAttachmentStage.colorWriteMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachmentStage.blendEnable = VK_FALSE; // 关闭混合
+    colorBlendAttachmentStage.blendEnable = VK_FALSE;                           // 关闭混合
 
     VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = {};
     colorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -185,7 +185,8 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName)
     /* VkPipelineDynamicStateCreateInfo[] */
     VkDynamicState dynamicStates[] = {
         VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
+        VK_DYNAMIC_STATE_SCISSOR,
+        VK_DYNAMIC_STATE_RASTERIZER_DISCARD_ENABLE,
     };
 
     VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
@@ -193,8 +194,15 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName)
     dynamicStateCreateInfo.dynamicStateCount = ARRAY_SIZE(dynamicStates);
     dynamicStateCreateInfo.pDynamicStates = &dynamicStates[0];
 
+    /* dynamic rendering */
+    VkPipelineRenderingCreateInfo pipelineRenderingInfo = {};
+    pipelineRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    pipelineRenderingInfo.colorAttachmentCount = 1;
+    pipelineRenderingInfo.pColorAttachmentFormats = &surfaceFormat.format;
+
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
     pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineCreateInfo.pNext = &pipelineRenderingInfo;
     pipelineCreateInfo.stageCount = std::size(shaderStagesCreateInfo);
     pipelineCreateInfo.pStages = shaderStagesCreateInfo;
     pipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
@@ -240,7 +248,7 @@ VkResult RenderDriver::_CreateInstance()
     const std::vector<const char*> extensions = {
         VK_KHR_SURFACE_EXTENSION_NAME,
     #if defined(_WIN32)
-        VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
+        "VK_KHR_win32_surface",
     #elif defined(__APPLE__)
         "VK_MVK_macos_surface",
         "VK_EXT_metal_surface",
@@ -297,8 +305,14 @@ VkResult RenderDriver::_CreateDevice()
         VK_KHR_MAINTENANCE3_EXTENSION_NAME
     };
 
+    /* dynamic rendering */
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature = {};
+    dynamicRenderingFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+    dynamicRenderingFeature.dynamicRendering = VK_TRUE;
+
     VkDeviceCreateInfo deviceCreateInfo = {};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceCreateInfo.pNext = &dynamicRenderingFeature;
     deviceCreateInfo.queueCreateInfoCount = 1;
     deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
     deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(std::size(extensions));
@@ -333,7 +347,7 @@ VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
     err = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, std::data(surfaceFormats));
     VK_CHECK_ERROR(err);
 
-    VkSurfaceFormatKHR surfaceFormat = VkUtils::ChooseSwapSurfaceFormat(surfaceFormats);
+    surfaceFormat = VkUtils::ChooseSwapSurfaceFormat(surfaceFormats);
 
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
     swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;

@@ -1,11 +1,23 @@
 #include <memory>
 #include "driver/render_driver.h"
 #define GLFW_INCLUDE_VULKAN
-#include <dlfcn.h>
 #include <GLFW/glfw3.h>
+
+#ifdef WIN32
+#include <direct.h>
+#endif
 
 int main()
 {
+#ifdef WIN32
+    char _cwd[512];
+    system("chcp 65001");
+    getcwd(_cwd, sizeof(_cwd));
+    _chdir("../shaders");
+    system("spvc.bat");
+    _chdir(_cwd);
+#endif
+
     glfwInit();
 
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);

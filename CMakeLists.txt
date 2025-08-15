@@ -1,27 +1,36 @@
-cmake_minimum_required(VERSION 3.31)
-project(ashlands)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.28.1...3.31)
+PROJECT(ashlands)
 
-set(CMAKE_CXX_STANDARD 26)
+SET(CMAKE_CXX_STANDARD 26)
 
-include_directories(./)
-include_directories(SYSTEM thirdparty include)
+INCLUDE_DIRECTORIES(./)
+INCLUDE_DIRECTORIES(SYSTEM "thirdparty" "include")
 
-add_subdirectory(modules/volk)
+ADD_SUBDIRECTORY("modules/volk")
 
-link_directories(
-  thirdparty/GLFW/libs/macOS/lib-x86_64
+IF (APPLE)
+    LINK_DIRECTORIES("thirdparty/GLFW/libs/macOS/lib-x86_64")
+ENDIF()
+
+IF (WIN32)
+    LINK_DIRECTORIES("thirdparty/GLFW/libs/win32/lib-mingw-w64")
+ENDIF()
+
+ADD_EXECUTABLE(${PROJECT_NAME}
+  "main.cpp"
+  "driver/render_driver.cpp"
 )
 
-add_executable(${PROJECT_NAME}
-  main.cpp
-  driver/render_driver.cpp
-)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} PRIVATE
   "volk"
   "glfw3"
-  "-framework Cocoa"
-  "-framework CoreFoundation"
-  "-framework IOKit"
-  "-framework CoreVideo"
 )
+
+IF (APPLE)
+    TARGET_LINK_LIBRARIES(${PROJECT_NAME} PRIVATE
+        "-framework Cocoa"
+        "-framework CoreFoundation"
+        "-framework IOKit"
+        "-framework CoreVideo"
+    )
+ENDIF()

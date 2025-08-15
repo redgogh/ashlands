@@ -54,6 +54,7 @@ private:
     std::vector<VkImageView> swapchainImageViews;
 
     uint32_t queueFamilyIndex = UINT32_MAX;
+    VkSurfaceFormatKHR surfaceFormat = {};
     VkPhysicalDeviceProperties physicalDeviceProperties = {};
 };
 
