@@ -10,7 +10,7 @@
 
 namespace VkUtils
 {
-    static VkPhysicalDevice FindBestPhysicalDevice(const VkInstance instance)
+    inline static VkPhysicalDevice PickBestPhysicalDevice(const VkInstance instance)
     {
         VkResult err = VK_SUCCESS;
 
@@ -46,7 +46,7 @@ namespace VkUtils
         return bestDevice;
     }
 
-    static uint32_t FindQueueFamilyIndex(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
+    inline static uint32_t FindQueueFamilyIndex(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
     {
         uint32_t count = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &count, VK_NULL_HANDLE);
@@ -66,7 +66,7 @@ namespace VkUtils
         return UINT32_MAX;
     }
 
-    static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& formats)
+    inline static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& formats)
     {
         VkSurfaceFormatKHR chosenSurfaceFormat = {};
 

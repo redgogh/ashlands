@@ -9,6 +9,7 @@
     if (err != VK_SUCCESS) \
         return err;
 
+/* volk 全局只初始化一次 */
 static bool volkInitialized = false;
 
 RenderDriver::RenderDriver()
@@ -22,6 +23,63 @@ RenderDriver::RenderDriver()
         volkInitialized = true;
     }
 #endif /* ENABLE_VOLK_LOADER */
+
+    err = _CreateInstance();
+    assert(!err);
+
+#ifdef ENABLE_VOLK_LOADER
+    volkLoadInstance(instance);
+#endif /* ENABLE_VOLK_LOADER */
+
+    uint32_t version = 0;
+    err = vkEnumerateInstanceVersion(&version);
+
+    if (!err) {
+        printf("[vulkan] instance version supported: %d.%d.%d\n",
+            VK_VERSION_MAJOR(version),
+            VK_VERSION_MINOR(version),
+            VK_VERSION_PATCH(version));
+    } else {
+        printf("[vulkan] instance version is <= 1.0");
+    }
+}
+
+RenderDriver::~RenderDriver()
+{
+    vkDestroyCommandPool(device, commandPool, VK_NULL_HANDLE);
+    // vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);
+    _DestroySwapchain();
+    vkDestroyDevice(device, VK_NULL_HANDLE);
+    vkDestroyInstance(instance, VK_NULL_HANDLE);
+}
+
+VkResult RenderDriver::Initialize(VkSurfaceKHR surface)
+{
+    VkResult err = VK_SUCCESS;
+
+    this->surface = surface;
+
+    err = _CreateDevice();
+    VK_CHECK_ERROR(err);
+
+    err = _CreateSwapchain(VK_NULL_HANDLE);
+    VK_CHECK_ERROR(err);
+
+    err = _CreateCommandPool();
+    VK_CHECK_ERROR(err);
+
+    return err;
+}
+
+void RenderDriver::RebuildSwapchain()
+{
+    _CreateSwapchain(swapchain);
+}
+
+
+VkResult RenderDriver::_CreateInstance()
+{
+    VkResult err = VK_SUCCESS;
 
     VkApplicationInfo applicationInfo = {};
     applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -67,56 +125,19 @@ RenderDriver::RenderDriver()
     instanceCreateInfo.ppEnabledExtensionNames = std::data(extensions);
 
     err = vkCreateInstance(&instanceCreateInfo, VK_NULL_HANDLE, &instance);
-    assert(!err);
-
-#ifdef ENABLE_VOLK_LOADER
-    volkLoadInstance(instance);
-#endif /* ENABLE_VOLK_LOADER */
-
-    uint32_t version = 0;
-    err = vkEnumerateInstanceVersion(&version);
-
-    if (!err) {
-        printf("[vulkan] instance version supported: %d.%d.%d\n",
-            VK_VERSION_MAJOR(version),
-            VK_VERSION_MINOR(version),
-            VK_VERSION_PATCH(version));
-    } else {
-        printf("[vulkan] instance version is <= 1.0");
-    }
-}
-
-RenderDriver::~RenderDriver()
-{
-    vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);
-    vkDestroyDevice(device, VK_NULL_HANDLE);
-    vkDestroyInstance(instance, VK_NULL_HANDLE);
-}
-
-VkResult RenderDriver::Initialize(VkSurfaceKHR surface)
-{
-    VkResult err = VK_SUCCESS;
-
-    this->surface = surface;
-
-    err = _InitializeDevice();
-    VK_CHECK_ERROR(err);
-
-    err = _InitializeSwapchain();
     VK_CHECK_ERROR(err);
 
     return err;
 }
 
-VkResult RenderDriver::_InitializeDevice()
+VkResult RenderDriver::_CreateDevice()
 {
     VkResult err = VK_SUCCESS;
 
-    physicalDevice = VkUtils::FindBestPhysicalDevice(instance);
+    physicalDevice = VkUtils::PickBestPhysicalDevice(instance);
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
     printf("[vulkan] found best physical device: %s\n", physicalDeviceProperties.deviceName);
 
-    uint32_t queueFamilyIndex = 0;
     queueFamilyIndex = VkUtils::FindQueueFamilyIndex(physicalDevice, surface);
     assert(queueFamilyIndex != UINT32_MAX);
 
@@ -144,11 +165,11 @@ VkResult RenderDriver::_InitializeDevice()
     err = vkCreateDevice(physicalDevice, &deviceCreateInfo, VK_NULL_HANDLE, &device);
     VK_CHECK_ERROR(err);
 
-TAG_DEVICE_INITIALIZE_END:
+TAG_DEVICE_Create_END:
     return err;
 }
 
-VkResult RenderDriver::_InitializeSwapchain()
+VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
 {
     VkResult err = VK_SUCCESS;
 
@@ -156,7 +177,7 @@ VkResult RenderDriver::_InitializeSwapchain()
     err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilities);
     VK_CHECK_ERROR(err);
 
-    uint32_t imageCount = surfaceCapabilities.minImageCount + 1;
+    imageCount = surfaceCapabilities.minImageCount + 1;
     if (imageCount > surfaceCapabilities.maxImageCount)
         imageCount = surfaceCapabilities.maxImageCount;
 
@@ -173,7 +194,7 @@ VkResult RenderDriver::_InitializeSwapchain()
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
     swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     swapchainCreateInfo.surface = surface;
-    swapchainCreateInfo.minImageCount = surfaceCapabilities.minImageCount + 1;
+    swapchainCreateInfo.minImageCount = imageCount;
     swapchainCreateInfo.imageFormat = surfaceFormat.format;
     swapchainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
     swapchainCreateInfo.imageExtent = surfaceCapabilities.currentExtent;
@@ -183,10 +204,75 @@ VkResult RenderDriver::_InitializeSwapchain()
     swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchainCreateInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
     swapchainCreateInfo.clipped = VK_TRUE;
-    swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+    swapchainCreateInfo.oldSwapchain = oldSwapchain;
 
-    err = vkCreateSwapchainKHR(device, &swapchainCreateInfo, VK_NULL_HANDLE, &swapchain);
+    VkSwapchainKHR tmpSwapchain = VK_NULL_HANDLE;
+    err = vkCreateSwapchainKHR(device, &swapchainCreateInfo, VK_NULL_HANDLE, &tmpSwapchain);
+    VK_CHECK_ERROR(err);
+
+    if (oldSwapchain != VK_NULL_HANDLE)
+        _DestroySwapchain();
+
+    swapchain = tmpSwapchain;
+
+    /* Create swapchain resources */
+    err = vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
+    VK_CHECK_ERROR(err);
+
+    swapchainImages.resize(imageCount);
+    swapchainImageViews.resize(imageCount);
+
+    err = vkGetSwapchainImagesKHR(device, swapchain, &imageCount, std::data(swapchainImages));
+    VK_CHECK_ERROR(err);
+
+    for (uint32_t i = 0; i < imageCount; i++) {
+        VkImage swapchainImage = swapchainImages[i];
+
+        VkImageViewCreateInfo imageViewCreateInfo = {};
+        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewCreateInfo.image = swapchainImage;
+        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imageViewCreateInfo.format = surfaceFormat.format;
+        imageViewCreateInfo.components = {
+            VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY
+        };
+        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+        imageViewCreateInfo.subresourceRange.levelCount = 1;
+        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewCreateInfo.subresourceRange.layerCount = 1;
+        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        err = vkCreateImageView(device, &imageViewCreateInfo, VK_NULL_HANDLE, &swapchainImageViews[i]);
+        VK_CHECK_ERROR(err);
+    }
+
+    return err;
+}
+
+VkResult RenderDriver::_CreateCommandPool()
+{
+    VkResult err = VK_SUCCESS;
+
+    VkCommandPoolCreateInfo commandPoolCreateInfo = {};
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+                                  | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    commandPoolCreateInfo.queueFamilyIndex = queueFamilyIndex;
+
+    err = vkCreateCommandPool(device, &commandPoolCreateInfo, VK_NULL_HANDLE, &commandPool);
     VK_CHECK_ERROR(err);
 
     return err;
+}
+
+void RenderDriver::_DestroySwapchain()
+{
+    for (uint32_t i = 0; i < imageCount; i++)
+        vkDestroyImageView(device, swapchainImageViews[i], VK_NULL_HANDLE);
+    swapchainImages.clear();
+    swapchainImageViews.clear();
+    vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);
 }
