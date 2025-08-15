@@ -25,7 +25,7 @@ public:
 
     VkResult Initialize(VkSurfaceKHR surface);
 
-    VkResult CreateBuffer(size_t size, Buffer* pBuffer);
+    VkResult CreateBuffer(size_t size, VkBufferUsageFlags usage, Buffer *pBuffer);
     void DestroyBuffer(Buffer buffer);
     VkResult CreatePipeline(const char *shaderName, Pipeline* pPipeline);
     void DestroyPipeline(Pipeline pipeline);

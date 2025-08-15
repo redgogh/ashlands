@@ -92,9 +92,13 @@ VkResult RenderDriver::Initialize(VkSurfaceKHR surface)
     return err;
 }
 
-VkResult RenderDriver::CreateBuffer(size_t size, Buffer *pBuffer)
+VkResult RenderDriver::CreateBuffer(size_t size, VkBufferUsageFlags usage, Buffer *pBuffer)
 {
-
+    VkBufferCreateInfo bufferCreateInfo = {};
+    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferCreateInfo.size = size;
+    bufferCreateInfo.usage = usage;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 }
 
 void RenderDriver::DestroyBuffer(Buffer buffer)
