@@ -3,7 +3,8 @@ project(ashlands)
 
 set(CMAKE_CXX_STANDARD 26)
 
-include_directories(SYSTEM thirdparty)
+include_directories(./)
+include_directories(SYSTEM thirdparty include)
 
 add_subdirectory(modules/volk)
 

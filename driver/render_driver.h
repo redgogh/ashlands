@@ -7,8 +7,12 @@
 #include <volk/volk.h>
 #endif /* ENABLE_VOLK_LOADER */
 
+#include <ashlands/typedefs.h>
+
+// std
 #include <assert.h>
 #include <vector>
+
 
 class RenderDriver
 {
@@ -20,6 +24,8 @@ public:
 
     void RebuildSwapchain();
 
+    VkResult CreatePipeline(const char *shaderName);
+
     VkInstance GetInstance() const { return instance; }
     VkQueue GetGraphicsQueue() const { return queue; }
     VkQueue GetPresentQueue() const { return queue; }
@@ -29,6 +35,7 @@ private:
     VkResult _CreateDevice();
     VkResult _CreateSwapchain(VkSwapchainKHR oldSwapchain);
     VkResult _CreateCommandPool();
+    VkResult _CreateShaderModule(const char* shaderName, const char* stage, VkShaderModule* pShaderModule);
 
     void _DestroySwapchain();
 

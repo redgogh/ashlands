@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include "vkutils.h"
+#include "utils/ioutils.h"
 
 #define VK_VERSION_1_3_216
 
@@ -74,6 +75,147 @@ VkResult RenderDriver::Initialize(VkSurfaceKHR surface)
 void RenderDriver::RebuildSwapchain()
 {
     _CreateSwapchain(swapchain);
+}
+
+VkResult RenderDriver::CreatePipeline(const char *shaderName)
+{
+    VkResult err = VK_SUCCESS;
+
+    /* VkPipelineLayoutCreateInfo */
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 0;
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+
+    VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+    err = vkCreatePipelineLayout(device, &pipelineLayoutInfo, VK_NULL_HANDLE, &pipelineLayout);
+    VK_CHECK_ERROR(err);
+
+    /* shader module */
+    VkShaderModule vertexShaderModule = VK_NULL_HANDLE;
+    VkShaderModule fragmentShaderModule = VK_NULL_HANDLE;
+
+    err = _CreateShaderModule(shaderName, "vert", &vertexShaderModule);
+    VK_CHECK_ERROR(err);
+
+    err = _CreateShaderModule(shaderName, "frag", &fragmentShaderModule);
+    VK_CHECK_ERROR(err);
+
+    /* VkPipelineShaderStageCreateInfo */
+    VkPipelineShaderStageCreateInfo shaderStagesCreateInfo[] = {
+        {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_VERTEX_BIT,
+            .module = vertexShaderModule,
+            .pName = "main",
+        },
+        {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .module = fragmentShaderModule,
+            .pName = "main",
+        }
+    };
+
+    /* VkVertexInputAttributeDescription */
+    VkVertexInputAttributeDescription vertexInputAttributeDescriptions[] = {
+        { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
+        { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 3 },
+    };
+
+    VkVertexInputBindingDescription vertexInputBindingDescriptions[] = {
+        { 0, sizeof(float) * 6, VK_VERTEX_INPUT_RATE_VERTEX }
+    };
+
+    VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
+    vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputStateCreateInfo.vertexBindingDescriptionCount = ARRAY_SIZE(vertexInputBindingDescriptions);
+    vertexInputStateCreateInfo.pVertexBindingDescriptions = &vertexInputBindingDescriptions[0];
+    vertexInputStateCreateInfo.vertexAttributeDescriptionCount = ARRAY_SIZE(vertexInputAttributeDescriptions);
+    vertexInputStateCreateInfo.pVertexAttributeDescriptions = &vertexInputAttributeDescriptions[0];
+
+    /* VkPipelineInputAssemblyStateCreateInfo */
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
+    inputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
+
+    /* VkPipelineRasterizationStateCreateInfo */
+    VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {};
+    rasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizationStateCreateInfo.depthClampEnable = VK_FALSE;                   // 超出深度范围裁剪而不是 clamp
+    rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;            // 不丢弃几何体
+    rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;            // 填充多边形方式点、线、面
+    rasterizationStateCreateInfo.lineWidth = 1.0f;                              // 线宽
+    rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;              // 背面剔除，可改 NONE 或 FRONT
+    rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;   // 前向面定义
+    rasterizationStateCreateInfo.depthBiasEnable = VK_FALSE;                    // 不使用深度偏移
+    rasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
+    rasterizationStateCreateInfo.depthBiasClamp = 0.0f;
+    rasterizationStateCreateInfo.depthBiasSlopeFactor = 0.0f;
+
+    /* VkPipelineMultisampleStateCreateInfo */
+    VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo = {};
+    multisampleStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampleStateCreateInfo.sampleShadingEnable = VK_FALSE;                  // 关闭样本着色
+    multisampleStateCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;    // 每像素采样数，1 = 关闭 MSAA
+    multisampleStateCreateInfo.minSampleShading = 1.0f;                         // 如果开启 sampleShading，最小采样比例
+    multisampleStateCreateInfo.pSampleMask = VK_NULL_HANDLE;                    // 默认全开
+    multisampleStateCreateInfo.alphaToCoverageEnable = VK_FALSE;                // alpha to coverage 禁用
+    multisampleStateCreateInfo.alphaToOneEnable = VK_FALSE;                     // alphaToOne 禁用
+
+    /* VkPipelineColorBlendStateCreateInfo */
+    VkPipelineColorBlendAttachmentState colorBlendAttachmentStage = {};
+    colorBlendAttachmentStage.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachmentStage.blendEnable = VK_FALSE; // 关闭混合
+
+    VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = {};
+    colorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlendStateCreateInfo.logicOpEnable = VK_FALSE;                         // 不使用逻辑操作
+    colorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY;                       // 无效，因为逻辑操作关闭
+    colorBlendStateCreateInfo.attachmentCount = 1;
+    colorBlendStateCreateInfo.pAttachments = &colorBlendAttachmentStage;
+    colorBlendStateCreateInfo.blendConstants[0] = 0.0f;
+    colorBlendStateCreateInfo.blendConstants[1] = 0.0f;
+    colorBlendStateCreateInfo.blendConstants[2] = 0.0f;
+    colorBlendStateCreateInfo.blendConstants[3] = 0.0f;
+
+    /* VkPipelineDynamicStateCreateInfo[] */
+    VkDynamicState dynamicStates[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
+    dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicStateCreateInfo.dynamicStateCount = ARRAY_SIZE(dynamicStates);
+    dynamicStateCreateInfo.pDynamicStates = &dynamicStates[0];
+
+    VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
+    pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineCreateInfo.stageCount = std::size(shaderStagesCreateInfo);
+    pipelineCreateInfo.pStages = shaderStagesCreateInfo;
+    pipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
+    pipelineCreateInfo.pInputAssemblyState = &inputAssemblyStateCreateInfo;
+    pipelineCreateInfo.pTessellationState = VK_NULL_HANDLE;
+    pipelineCreateInfo.pViewportState = VK_NULL_HANDLE;
+    pipelineCreateInfo.pRasterizationState = &rasterizationStateCreateInfo;
+    pipelineCreateInfo.pMultisampleState = &multisampleStateCreateInfo;
+    pipelineCreateInfo.pDepthStencilState = VK_NULL_HANDLE;
+    pipelineCreateInfo.pColorBlendState = &colorBlendStateCreateInfo;
+    pipelineCreateInfo.pDynamicState = &dynamicStateCreateInfo;
+    pipelineCreateInfo.layout = pipelineLayout;
+
+    VkPipeline pipeline = VK_NULL_HANDLE;
+    err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, VK_NULL_HANDLE, &pipeline);
+    VK_CHECK_ERROR(err);
+
+    vkDestroyShaderModule(device, vertexShaderModule, VK_NULL_HANDLE);
+    vkDestroyShaderModule(device, fragmentShaderModule, VK_NULL_HANDLE);
+
+    return err;
 }
 
 
@@ -269,6 +411,31 @@ VkResult RenderDriver::_CreateCommandPool()
 
     return err;
 }
+
+VkResult RenderDriver::_CreateShaderModule(const char* shaderName, const char* stage, VkShaderModule* pShaderModule)
+{
+    size_t size;
+    VkResult err = VK_SUCCESS;
+
+    char path[PATH_MAX];
+    snprintf(path, sizeof(path), "%s.%s.spv", shaderName, stage);
+
+    char *buf = io_read_bytecode(path, &size);
+
+    printf("[vulkan] load shader module %s, code size=%ld\n", path, size);
+
+    VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
+    shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    shaderModuleCreateInfo.codeSize = size;
+    shaderModuleCreateInfo.pCode = reinterpret_cast<uint32_t*>(buf);
+
+    err = vkCreateShaderModule(device, &shaderModuleCreateInfo, VK_NULL_HANDLE, pShaderModule);
+    io_free_buf(buf);
+    VK_CHECK_ERROR(err);
+
+    return err;
+}
+
 
 void RenderDriver::_DestroySwapchain()
 {

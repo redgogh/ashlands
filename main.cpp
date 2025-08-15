@@ -24,6 +24,8 @@ int main()
     assert(!err);
     driver->Initialize(surface);
 
+    driver->CreatePipeline("universal");
+
     while (!glfwWindowShouldClose(hwindow)) {
         glfwPollEvents();
     }

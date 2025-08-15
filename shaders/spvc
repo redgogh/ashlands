@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
+echo "[spvc] script dirname: $SCRIPT_DIR"
+cd "$SCRIPT_DIR"
+
+for path in *.vert *.frag; do
+  [ -f "$path" ] || continue
+  echo "[spvc] compiling $path ..."
+  glslangValidator -V "$path" -o "$path.spv"
+done
+
+mv *.spv ../cmake-build-debug
