@@ -15,7 +15,7 @@ static bool volkInitialized = false;
 
 RenderDriver::RenderDriver()
 {
-    VkResult err = VK_SUCCESS;
+    VkResult err;;
 
 #ifdef ENABLE_VOLK_LOADER
     if (!volkInitialized) {
@@ -56,7 +56,7 @@ RenderDriver::~RenderDriver()
 
 VkResult RenderDriver::Initialize(VkSurfaceKHR surface)
 {
-    VkResult err = VK_SUCCESS;
+    VkResult err;;
 
     this->surface = surface;
 
@@ -79,7 +79,7 @@ void RenderDriver::RebuildSwapchain()
 
 VkResult RenderDriver::CreatePipeline(const char *shaderName)
 {
-    VkResult err = VK_SUCCESS;
+    VkResult err;;
 
     /* VkPipelineLayoutCreateInfo */
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
@@ -229,7 +229,7 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName)
 
 VkResult RenderDriver::_CreateInstance()
 {
-    VkResult err = VK_SUCCESS;
+    VkResult err;;
 
     VkApplicationInfo applicationInfo = {};
     applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -282,7 +282,7 @@ VkResult RenderDriver::_CreateInstance()
 
 VkResult RenderDriver::_CreateDevice()
 {
-    VkResult err = VK_SUCCESS;
+    VkResult err;;
 
     physicalDevice = VkUtils::PickBestPhysicalDevice(instance);
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
@@ -329,7 +329,7 @@ TAG_DEVICE_Create_END:
 
 VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
 {
-    VkResult err = VK_SUCCESS;
+    VkResult err;;
 
     VkSurfaceCapabilitiesKHR surfaceCapabilities = {};
     err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilities);
@@ -412,7 +412,7 @@ VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
 
 VkResult RenderDriver::_CreateCommandPool()
 {
-    VkResult err = VK_SUCCESS;
+    VkResult err;;
 
     VkCommandPoolCreateInfo commandPoolCreateInfo = {};
     commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -429,7 +429,7 @@ VkResult RenderDriver::_CreateCommandPool()
 VkResult RenderDriver::_CreateShaderModule(const char* shaderName, const char* stage, VkShaderModule* pShaderModule)
 {
     size_t size;
-    VkResult err = VK_SUCCESS;
+    VkResult err;;
 
     char path[PATH_MAX];
     snprintf(path, sizeof(path), "%s.%s.spv", shaderName, stage);
