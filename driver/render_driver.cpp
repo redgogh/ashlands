@@ -51,6 +51,7 @@ RenderDriver::~RenderDriver()
     // vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);
     _DestroySwapchain();
     vkDestroyDevice(device, VK_NULL_HANDLE);
+    vkDestroySurfaceKHR(instance, surface, VK_NULL_HANDLE);
     vkDestroyInstance(instance, VK_NULL_HANDLE);
 }
 
@@ -77,7 +78,7 @@ void RenderDriver::RebuildSwapchain()
     _CreateSwapchain(swapchain);
 }
 
-VkResult RenderDriver::CreatePipeline(const char *shaderName)
+VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipeline)
 {
     VkResult err;;
 
@@ -223,9 +224,20 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName)
     vkDestroyShaderModule(device, vertexShaderModule, VK_NULL_HANDLE);
     vkDestroyShaderModule(device, fragmentShaderModule, VK_NULL_HANDLE);
 
+    Pipeline ret = (Pipeline) malloc(sizeof(Pipeline_T));
+    ret->vkPipeline = pipeline;
+    ret->vkPipelineLayout = pipelineLayout;
+    *pPipeline = ret;
+
     return err;
 }
 
+void RenderDriver::DestroyPipeline(Pipeline pipeline)
+{
+    vkDestroyPipeline(device, pipeline->vkPipeline, VK_NULL_HANDLE);
+    vkDestroyPipelineLayout(device, pipeline->vkPipelineLayout, VK_NULL_HANDLE);
+    free(pipeline);
+}
 
 VkResult RenderDriver::_CreateInstance()
 {

@@ -36,11 +36,14 @@ int main()
     assert(!err);
     driver->Initialize(surface);
 
-    driver->CreatePipeline("universal");
+    Pipeline pipeline = VK_NULL_HANDLE;
+    driver->CreatePipeline("universal", &pipeline);
 
     while (!glfwWindowShouldClose(hwindow)) {
         glfwPollEvents();
     }
+
+    driver->DestroyPipeline(pipeline);
 
     glfwDestroyWindow(hwindow);
     glfwTerminate();

@@ -13,6 +13,10 @@
 #include <assert.h>
 #include <vector>
 
+typedef struct Pipeline_T {
+    VkPipeline vkPipeline;
+    VkPipelineLayout vkPipelineLayout;
+} *Pipeline;
 
 class RenderDriver
 {
@@ -24,7 +28,9 @@ public:
 
     void RebuildSwapchain();
 
-    VkResult CreatePipeline(const char *shaderName);
+    VkResult CreatePipeline(const char *shaderName, Pipeline* pPipeline);
+
+    void DestroyPipeline(Pipeline pipeline);
 
     VkInstance GetInstance() const { return instance; }
     VkQueue GetGraphicsQueue() const { return queue; }
