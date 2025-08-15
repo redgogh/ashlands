@@ -1,3 +1,6 @@
+#define VK_NO_PROTOTYPES
+#define VMA_IMPLEMENTATION
+
 #include "render_driver.h"
 
 #include <stdio.h>
@@ -13,9 +16,16 @@
 /* volk 全局只初始化一次 */
 static bool volkInitialized = false;
 
+struct Buffer_T {
+    VkBuffer vkBuffer = VK_NULL_HANDLE;
+    VmaAllocation allocation = VK_NULL_HANDLE;
+    VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM;
+    VkDeviceSize size = 0;
+};
+
 struct Pipeline_T {
-    VkPipeline vkPipeline;
-    VkPipelineLayout vkPipelineLayout;
+    VkPipeline vkPipeline = VK_NULL_HANDLE;
+    VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
 };
 
 RenderDriver::RenderDriver()
@@ -55,6 +65,7 @@ RenderDriver::~RenderDriver()
     vkDestroyCommandPool(device, commandPool, VK_NULL_HANDLE);
     // vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);
     _DestroySwapchain();
+    vmaDestroyAllocator(memoryAllocator);
     vkDestroyDevice(device, VK_NULL_HANDLE);
     vkDestroySurfaceKHR(instance, surface, VK_NULL_HANDLE);
     vkDestroyInstance(instance, VK_NULL_HANDLE);
@@ -75,12 +86,20 @@ VkResult RenderDriver::Initialize(VkSurfaceKHR surface)
     err = _CreateCommandPool();
     VK_CHECK_ERROR(err);
 
+    err = _CreateMemoryAllocator();
+    VK_CHECK_ERROR(err);
+
     return err;
 }
 
-void RenderDriver::RebuildSwapchain()
+VkResult RenderDriver::CreateBuffer(size_t size, Buffer *pBuffer)
 {
-    _CreateSwapchain(swapchain);
+
+}
+
+void RenderDriver::DestroyBuffer(Buffer buffer)
+{
+
 }
 
 VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipeline)
@@ -244,6 +263,16 @@ void RenderDriver::DestroyPipeline(Pipeline pipeline)
     free(pipeline);
 }
 
+void RenderDriver::RebuildSwapchain()
+{
+    _CreateSwapchain(swapchain);
+}
+
+void RenderDriver::WriteBuffer(Buffer buffer, size_t offset, void *data, size_t size)
+{
+
+}
+
 VkResult RenderDriver::_CreateInstance()
 {
     VkResult err;
@@ -341,6 +370,26 @@ VkResult RenderDriver::_CreateDevice()
     vkGetDeviceQueue(device, queueFamilyIndex, 0, &queue);
 
 TAG_DEVICE_Create_END:
+    return err;
+}
+
+VkResult RenderDriver::_CreateMemoryAllocator()
+{
+    VkResult err;
+
+    VmaVulkanFunctions vulkanFunctions = {};
+    vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+    vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+
+    VmaAllocatorCreateInfo allocatorCreateInfo = {};
+    allocatorCreateInfo.instance = instance;
+    allocatorCreateInfo.physicalDevice = physicalDevice;
+    allocatorCreateInfo.device = device;
+    allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
+
+    err = vmaCreateAllocator(&allocatorCreateInfo, &memoryAllocator);
+    VK_CHECK_ERROR(err);
+
     return err;
 }
 

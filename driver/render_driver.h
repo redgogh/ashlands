@@ -7,12 +7,14 @@
 #include <volk/volk.h>
 #endif /* ENABLE_VOLK_LOADER */
 
+#include <vma/vk_mem_alloc.h>
 #include <ashlands/typedefs.h>
 
 // std
 #include <assert.h>
 #include <vector>
 
+typedef struct Buffer_T *Buffer;
 typedef struct Pipeline_T *Pipeline;
 
 class RenderDriver
@@ -23,11 +25,13 @@ public:
 
     VkResult Initialize(VkSurfaceKHR surface);
 
-    void RebuildSwapchain();
-
+    VkResult CreateBuffer(size_t size, Buffer* pBuffer);
+    void DestroyBuffer(Buffer buffer);
     VkResult CreatePipeline(const char *shaderName, Pipeline* pPipeline);
-
     void DestroyPipeline(Pipeline pipeline);
+
+    void RebuildSwapchain();
+    void WriteBuffer(Buffer buffer, size_t offset, void* data, size_t size);
 
     VkInstance GetInstance() const { return instance; }
     VkQueue GetGraphicsQueue() const { return queue; }
@@ -36,6 +40,7 @@ public:
 private:
     VkResult _CreateInstance();
     VkResult _CreateDevice();
+    VkResult _CreateMemoryAllocator();
     VkResult _CreateSwapchain(VkSwapchainKHR oldSwapchain);
     VkResult _CreateCommandPool();
     VkResult _CreateShaderModule(const char* shaderName, const char* stage, VkShaderModule* pShaderModule);
@@ -48,6 +53,7 @@ private:
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
     VkQueue queue = VK_NULL_HANDLE;
+    VmaAllocator memoryAllocator = VK_NULL_HANDLE;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
     VkCommandPool commandPool = VK_NULL_HANDLE;
 
