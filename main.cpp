@@ -17,18 +17,12 @@ int main()
     if (hwindow == nullptr)
         throw std::runtime_error("Failed to create GLFW window");
 
-    void* handle = VK_NULL_HANDLE;
-    handle = dlopen("libvulkan.1.4.321.dylib", RTLD_LAZY | RTLD_LOCAL);
-
     const std::unique_ptr<RenderDriver> driver = std::make_unique<RenderDriver>();
-    int r = glfwVulkanSupported();
-    if (!r)
-        throw std::runtime_error("Failed to create GLFW vulkan support");
 
     VkSurfaceKHR surface = VK_NULL_HANDLE;
-    glfwCreateWindowSurface(driver->GetInstance(), hwindow, VK_NULL_HANDLE, &surface);
-    assert(surface != VK_NULL_HANDLE);
-    driver->Initialize(VK_NULL_HANDLE);
+    VkResult err = glfwCreateWindowSurface(driver->GetInstance(), hwindow, VK_NULL_HANDLE, &surface);
+    assert(!err);
+    driver->Initialize(surface);
 
     while (!glfwWindowShouldClose(hwindow)) {
         glfwPollEvents();

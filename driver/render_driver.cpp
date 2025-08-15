@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include "vkutils.h"
 
+#define VK_VERSION_1_3_216
+
 #define VK_CHECK_ERROR(err) \
     if (err != VK_SUCCESS) \
         return err;
@@ -41,14 +43,23 @@ RenderDriver::RenderDriver()
         VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
     #elif defined(__APPLE__)
         "VK_MVK_macos_surface",
+        "VK_EXT_metal_surface",
     #elif defined(__linux__)
         VK_KHR_XLIB_SURFACE_EXTENSION_NAME,
     #endif
-        VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+        VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+
+#if VK_HEADER_VERSION >= 216
+        "VK_KHR_portability_enumeration",
+        "VK_KHR_get_physical_device_properties2",
+#endif
     };
 
     VkInstanceCreateInfo instanceCreateInfo = {};
     instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+#if VK_HEADER_VERSION >= 216
+    instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
     instanceCreateInfo.pApplicationInfo = &applicationInfo;
     instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(std::size(layers));
     instanceCreateInfo.ppEnabledLayerNames = std::data(layers);
