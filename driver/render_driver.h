@@ -13,10 +13,7 @@
 #include <assert.h>
 #include <vector>
 
-typedef struct Pipeline_T {
-    VkPipeline vkPipeline;
-    VkPipelineLayout vkPipelineLayout;
-} *Pipeline;
+typedef struct Pipeline_T *Pipeline;
 
 class RenderDriver
 {

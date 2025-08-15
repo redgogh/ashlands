@@ -13,6 +13,11 @@
 /* volk 全局只初始化一次 */
 static bool volkInitialized = false;
 
+struct Pipeline_T {
+    VkPipeline vkPipeline;
+    VkPipelineLayout vkPipelineLayout;
+};
+
 RenderDriver::RenderDriver()
 {
     VkResult err;
