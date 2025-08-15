@@ -165,6 +165,8 @@ VkResult RenderDriver::_CreateDevice()
     err = vkCreateDevice(physicalDevice, &deviceCreateInfo, VK_NULL_HANDLE, &device);
     VK_CHECK_ERROR(err);
 
+    vkGetDeviceQueue(device, queueFamilyIndex, 0, &queue);
+
 TAG_DEVICE_Create_END:
     return err;
 }
