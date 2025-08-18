@@ -32,7 +32,7 @@ public:
 
     void RebuildSwapchain();
     void ReadBuffer(Buffer buffer, size_t off, void* dst, size_t size);
-    void WriteBuffer(Buffer buffer, size_t off, void* data, size_t size);
+    void WriteBuffer(Buffer buffer, size_t off, void* src, size_t size);
 
     VkInstance GetInstance() const { return instance; }
     VkQueue GetGraphicsQueue() const { return queue; }
