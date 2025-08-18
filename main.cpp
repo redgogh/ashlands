@@ -1,5 +1,5 @@
 #include <memory>
-#include "driver/render_driver.h"
+#include "drivers/render_driver.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -53,6 +53,7 @@ int main()
 
     Buffer buffer = VK_NULL_HANDLE;
     driver->CreateBuffer(1024, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &buffer);
+    driver->DestroyBuffer(buffer);
 
     while (!glfwWindowShouldClose(hwindow)) {
         glfwPollEvents();

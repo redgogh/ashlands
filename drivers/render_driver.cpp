@@ -298,7 +298,7 @@ void RenderDriver::ReadBuffer(Buffer buffer, size_t off, void *dst, size_t size)
 {
     void* src = VK_NULL_HANDLE;
     vmaMapMemory(allocator, buffer->allocation, &src);
-    memcpy((char *) dst + off, src + off, size);
+    memcpy((char *) dst + off, src, size);
     vmaUnmapMemory(allocator, buffer->allocation);
 }
 
