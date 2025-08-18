@@ -19,7 +19,7 @@ static bool volkInitialized = false;
 struct Buffer_T {
     VkBuffer vkBuffer = VK_NULL_HANDLE;
     VmaAllocation allocation = VK_NULL_HANDLE;
-    VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM;
+    VkBufferUsageFlags usage = VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM;
     VkDeviceSize size = 0;
     VmaAllocationInfo allocationInfo;
 };
@@ -115,6 +115,9 @@ VkResult RenderDriver::CreateBuffer(const size_t size, VkBufferUsageFlags usage,
                           &(*pBuffer)->allocation,
                           &(*pBuffer)->allocationInfo);
     VK_CHECK_ERROR(err);
+
+    (*pBuffer)->usage = usage;
+    (*pBuffer)->size = size;
 
     return err;
 }
@@ -291,9 +294,20 @@ void RenderDriver::RebuildSwapchain()
     _CreateSwapchain(swapchain);
 }
 
-void RenderDriver::WriteBuffer(Buffer buffer, size_t offset, void *data, size_t size)
+void RenderDriver::ReadBuffer(Buffer buffer, size_t off, void *dst, size_t size)
 {
+    void* src = VK_NULL_HANDLE;
+    vmaMapMemory(memoryAllocator, buffer->allocation, &src);
+    memcpy((char *) dst + off, src + off, size);
+    vmaUnmapMemory(memoryAllocator, buffer->allocation);
+}
 
+void RenderDriver::WriteBuffer(Buffer buffer, size_t off, void *src, size_t size)
+{
+    void* dst = VK_NULL_HANDLE;
+    vmaMapMemory(memoryAllocator, buffer->allocation, &dst);
+    memcpy((char*) dst + off, src, size);
+    vmaUnmapMemory(memoryAllocator, buffer->allocation);
 }
 
 VkResult RenderDriver::_CreateInstance()
