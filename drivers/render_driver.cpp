@@ -294,19 +294,19 @@ void RenderDriver::RebuildSwapchain()
     _CreateSwapchain(swapchain);
 }
 
-void RenderDriver::ReadBuffer(Buffer buffer, size_t off, void *dst, size_t size)
+void RenderDriver::ReadBuffer(Buffer buffer, void *data, size_t size)
 {
-    void* src = VK_NULL_HANDLE;
+    void* src;
     vmaMapMemory(allocator, buffer->allocation, &src);
-    memcpy((char *) dst + off, src, size);
+    memcpy(data, src, size);
     vmaUnmapMemory(allocator, buffer->allocation);
 }
 
-void RenderDriver::WriteBuffer(Buffer buffer, size_t off, void *src, size_t size)
+void RenderDriver::WriteBuffer(Buffer buffer, void *data, size_t size)
 {
-    void* dst = VK_NULL_HANDLE;
+    void* dst;
     vmaMapMemory(allocator, buffer->allocation, &dst);
-    memcpy((char*) dst + off, src, size);
+    memcpy(dst, data, size);
     vmaUnmapMemory(allocator, buffer->allocation);
 }
 
