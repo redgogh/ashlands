@@ -55,6 +55,10 @@ int main()
     driver->CreateBuffer(1024, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &buffer);
     driver->DestroyBuffer(buffer);
 
+    Texture2D texture = VK_NULL_HANDLE;
+    driver->CreateTexture2D(500, 500, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &texture);
+    driver->DestroyTexture2D(texture);
+
     while (!glfwWindowShouldClose(hwindow)) {
         glfwPollEvents();
     }

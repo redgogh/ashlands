@@ -14,7 +14,6 @@
 #include <assert.h>
 #include <vector>
 
-typedef struct Image_T *Image;
 typedef struct Texture2D_T *Texture2D;
 typedef struct Buffer_T *Buffer;
 typedef struct Pipeline_T *Pipeline;
@@ -29,8 +28,8 @@ public:
 
     VkResult CreateBuffer(size_t size, VkBufferUsageFlags usage, Buffer *pBuffer);
     void DestroyBuffer(Buffer buffer);
-    VkResult CreateImage(uint32_t w, uint32_t h, VkFormat format, VkImageUsageFlags usage, Image *pImage);
-    void DestroyImage(Image image);
+    VkResult CreateTexture2D(uint32_t w, uint32_t h, VkFormat format, VkImageUsageFlags usage, Texture2D *pTexture2D);
+    void DestroyTexture2D(Texture2D Texture2D);
     VkResult CreatePipeline(const char *shaderName, Pipeline* pPipeline);
     void DestroyPipeline(Pipeline pipeline);
 

@@ -16,13 +16,14 @@
 /* volk 全局只初始化一次 */
 static bool volkInitialized = false;
 
-struct Image_T {
+struct Texture2D_T {
     VkImage vkImage = VK_NULL_HANDLE;
     VkImageView vkImageView = VK_NULL_HANDLE;
     VmaAllocation allocation = VK_NULL_HANDLE;
     VmaAllocationInfo allocationInfo = {};
     uint32_t width = 0;
     uint32_t height = 0;
+    VkFormat format = VK_FORMAT_UNDEFINED;
     VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
 };
 
@@ -138,7 +139,7 @@ void RenderDriver::DestroyBuffer(Buffer buffer)
     free(buffer);
 }
 
-VkResult RenderDriver::CreateImage(uint32_t w, uint32_t h, VkFormat format, VkImageUsageFlags usage, Image *pImage)
+VkResult RenderDriver::CreateTexture2D(uint32_t w, uint32_t h, VkFormat format, VkImageUsageFlags usage, Texture2D *pTexture2D)
 {
     VkResult err;
 
@@ -171,20 +172,33 @@ VkResult RenderDriver::CreateImage(uint32_t w, uint32_t h, VkFormat format, VkIm
     imageViewCreateInfo.image = image;
     imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     imageViewCreateInfo.format = format;
+    imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+    imageViewCreateInfo.subresourceRange.levelCount = 1;
+    imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewCreateInfo.subresourceRange.layerCount = 1;
 
     err = vkCreateImageView(device, &imageViewCreateInfo, VK_NULL_HANDLE, &imageView);
     VK_CHECK_ERROR(err);
 
-    *pImage = (Image_T *) malloc(sizeof(Image_T));
+    *pTexture2D = (Texture2D_T *) malloc(sizeof(Texture2D_T));
 
-    (*pImage)->vkImage = image;
-    (*pImage)->vkImageView = imageView;
-    (*pImage)->allocation = allocation;
-    (*pImage)->allocationInfo = allocationInfo;
-    (*pImage)->width = w;
-    (*pImage)->height = h;
+    (*pTexture2D)->vkImage = image;
+    (*pTexture2D)->vkImageView = imageView;
+    (*pTexture2D)->allocation = allocation;
+    (*pTexture2D)->allocationInfo = allocationInfo;
+    (*pTexture2D)->width = w;
+    (*pTexture2D)->height = h;
+    (*pTexture2D)->format = format;
 
     return err;
+}
+
+void RenderDriver::DestroyTexture2D(Texture2D Texture2D)
+{
+    vmaDestroyImage(allocator, Texture2D->vkImage, Texture2D->allocation);
+    vkDestroyImageView(device, Texture2D->vkImageView, VK_NULL_HANDLE);
+    free(Texture2D);
 }
 
 VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipeline)
