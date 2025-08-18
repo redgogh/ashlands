@@ -3,6 +3,9 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <stdlib.h>
+#include <unistd.h>
+
 #ifdef WIN32
 #include <direct.h>
 #endif
@@ -10,12 +13,20 @@
 int main()
 {
 #ifdef WIN32
-    char _cwd[512];
+    char _cwd[PATH_MAX];
     system("chcp 65001");
     getcwd(_cwd, sizeof(_cwd));
     _chdir("../shaders");
     system("spvc.bat");
     _chdir(_cwd);
+#endif
+
+#ifdef __APPLE__
+    char _cwd[PATH_MAX];
+    getcwd(_cwd, sizeof(_cwd));
+    chdir("../shaders");
+    system("./spvc");
+    chdir(_cwd);
 #endif
 
     glfwInit();
@@ -38,12 +49,15 @@ int main()
 
     Pipeline pipeline = VK_NULL_HANDLE;
     driver->CreatePipeline("universal", &pipeline);
+    driver->DestroyPipeline(pipeline);
+
+    Buffer buffer = VK_NULL_HANDLE;
+    driver->CreateBuffer(1024, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &buffer);
+    driver->DestroyBuffer(buffer);
 
     while (!glfwWindowShouldClose(hwindow)) {
         glfwPollEvents();
     }
-
-    driver->DestroyPipeline(pipeline);
 
     glfwDestroyWindow(hwindow);
     glfwTerminate();

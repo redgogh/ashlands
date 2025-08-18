@@ -31,7 +31,8 @@ public:
     void DestroyPipeline(Pipeline pipeline);
 
     void RebuildSwapchain();
-    void WriteBuffer(Buffer buffer, size_t offset, void* data, size_t size);
+    // void ReadBuffer(Buffer buffer, size_t off, void* dst, size_t size);
+    void WriteBuffer(Buffer buffer, size_t off, void* data, size_t size);
 
     VkInstance GetInstance() const { return instance; }
     VkQueue GetGraphicsQueue() const { return queue; }
@@ -46,6 +47,8 @@ private:
     VkResult _CreateShaderModule(const char* shaderName, const char* stage, VkShaderModule* pShaderModule);
 
     void _DestroySwapchain();
+
+    static VmaMemoryUsage _GuessMemoryUsage(VkBufferUsageFlags usage);
 
     // Vulkan handles
     VkInstance instance = VK_NULL_HANDLE;

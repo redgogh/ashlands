@@ -21,6 +21,7 @@ struct Buffer_T {
     VmaAllocation allocation = VK_NULL_HANDLE;
     VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM;
     VkDeviceSize size = 0;
+    VmaAllocationInfo allocationInfo;
 };
 
 struct Pipeline_T {
@@ -92,18 +93,36 @@ VkResult RenderDriver::Initialize(VkSurfaceKHR surface)
     return err;
 }
 
-VkResult RenderDriver::CreateBuffer(size_t size, VkBufferUsageFlags usage, Buffer *pBuffer)
+VkResult RenderDriver::CreateBuffer(const size_t size, VkBufferUsageFlags usage, Buffer *pBuffer)
 {
+    VkResult err;
+
     VkBufferCreateInfo bufferCreateInfo = {};
     bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferCreateInfo.size = size;
     bufferCreateInfo.usage = usage;
     bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VmaAllocationCreateInfo allocationCreateInfo = {};
+    allocationCreateInfo.usage = _GuessMemoryUsage(usage);
+
+    *pBuffer = (Buffer_T*) malloc(sizeof(Buffer_T));
+
+    err = vmaCreateBuffer(memoryAllocator,
+                          &bufferCreateInfo,
+                          &allocationCreateInfo,
+                          &(*pBuffer)->vkBuffer,
+                          &(*pBuffer)->allocation,
+                          &(*pBuffer)->allocationInfo);
+    VK_CHECK_ERROR(err);
+
+    return err;
 }
 
 void RenderDriver::DestroyBuffer(Buffer buffer)
 {
-
+    vmaDestroyBuffer(memoryAllocator, buffer->vkBuffer, buffer->allocation);
+    free(buffer);
 }
 
 VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipeline)
@@ -520,7 +539,6 @@ VkResult RenderDriver::_CreateShaderModule(const char* shaderName, const char* s
     return err;
 }
 
-
 void RenderDriver::_DestroySwapchain()
 {
     for (uint32_t i = 0; i < imageCount; i++)
@@ -528,4 +546,20 @@ void RenderDriver::_DestroySwapchain()
     swapchainImages.clear();
     swapchainImageViews.clear();
     vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);
+}
+
+VmaMemoryUsage RenderDriver::_GuessMemoryUsage(VkBufferUsageFlags usage)
+{
+    if (usage & (VK_BUFFER_USAGE_TRANSFER_SRC_BIT))
+        return VMA_MEMORY_USAGE_CPU_TO_GPU;
+
+    if (usage & (VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+        | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+        | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+        | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        | VK_BUFFER_USAGE_TRANSFER_DST_BIT))
+        return VMA_MEMORY_USAGE_GPU_ONLY;
+
+    // 默认：CPU -> GPU
+    return VMA_MEMORY_USAGE_CPU_TO_GPU;
 }
