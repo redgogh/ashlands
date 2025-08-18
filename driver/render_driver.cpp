@@ -66,7 +66,7 @@ RenderDriver::~RenderDriver()
     vkDestroyCommandPool(device, commandPool, VK_NULL_HANDLE);
     // vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);
     _DestroySwapchain();
-    vmaDestroyAllocator(memoryAllocator);
+    vmaDestroyAllocator(allocator);
     vkDestroyDevice(device, VK_NULL_HANDLE);
     vkDestroySurfaceKHR(instance, surface, VK_NULL_HANDLE);
     vkDestroyInstance(instance, VK_NULL_HANDLE);
@@ -108,7 +108,7 @@ VkResult RenderDriver::CreateBuffer(const size_t size, VkBufferUsageFlags usage,
 
     *pBuffer = (Buffer_T*) malloc(sizeof(Buffer_T));
 
-    err = vmaCreateBuffer(memoryAllocator,
+    err = vmaCreateBuffer(allocator,
                           &bufferCreateInfo,
                           &allocationCreateInfo,
                           &(*pBuffer)->vkBuffer,
@@ -124,7 +124,7 @@ VkResult RenderDriver::CreateBuffer(const size_t size, VkBufferUsageFlags usage,
 
 void RenderDriver::DestroyBuffer(Buffer buffer)
 {
-    vmaDestroyBuffer(memoryAllocator, buffer->vkBuffer, buffer->allocation);
+    vmaDestroyBuffer(allocator, buffer->vkBuffer, buffer->allocation);
     free(buffer);
 }
 
@@ -297,17 +297,17 @@ void RenderDriver::RebuildSwapchain()
 void RenderDriver::ReadBuffer(Buffer buffer, size_t off, void *dst, size_t size)
 {
     void* src = VK_NULL_HANDLE;
-    vmaMapMemory(memoryAllocator, buffer->allocation, &src);
+    vmaMapMemory(allocator, buffer->allocation, &src);
     memcpy((char *) dst + off, src + off, size);
-    vmaUnmapMemory(memoryAllocator, buffer->allocation);
+    vmaUnmapMemory(allocator, buffer->allocation);
 }
 
 void RenderDriver::WriteBuffer(Buffer buffer, size_t off, void *src, size_t size)
 {
     void* dst = VK_NULL_HANDLE;
-    vmaMapMemory(memoryAllocator, buffer->allocation, &dst);
+    vmaMapMemory(allocator, buffer->allocation, &dst);
     memcpy((char*) dst + off, src, size);
-    vmaUnmapMemory(memoryAllocator, buffer->allocation);
+    vmaUnmapMemory(allocator, buffer->allocation);
 }
 
 VkResult RenderDriver::_CreateInstance()
@@ -424,7 +424,7 @@ VkResult RenderDriver::_CreateMemoryAllocator()
     allocatorCreateInfo.device = device;
     allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
 
-    err = vmaCreateAllocator(&allocatorCreateInfo, &memoryAllocator);
+    err = vmaCreateAllocator(&allocatorCreateInfo, &allocator);
     VK_CHECK_ERROR(err);
 
     return err;
