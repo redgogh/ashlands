@@ -16,6 +16,16 @@
 /* volk 全局只初始化一次 */
 static bool volkInitialized = false;
 
+struct Image_T {
+    VkImage vkImage = VK_NULL_HANDLE;
+    VkImageView vkImageView = VK_NULL_HANDLE;
+    VmaAllocation allocation = VK_NULL_HANDLE;
+    VmaAllocationInfo allocationInfo = {};
+    uint32_t width = 0;
+    uint32_t height = 0;
+    VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+};
+
 struct Buffer_T {
     VkBuffer vkBuffer = VK_NULL_HANDLE;
     VmaAllocation allocation = VK_NULL_HANDLE;
@@ -126,6 +136,55 @@ void RenderDriver::DestroyBuffer(Buffer buffer)
 {
     vmaDestroyBuffer(allocator, buffer->vkBuffer, buffer->allocation);
     free(buffer);
+}
+
+VkResult RenderDriver::CreateImage(uint32_t w, uint32_t h, VkFormat format, VkImageUsageFlags usage, Image *pImage)
+{
+    VkResult err;
+
+    VkImageCreateInfo imageCreateInfo = {};
+    imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageCreateInfo.format = format;
+    imageCreateInfo.extent.width = w;
+    imageCreateInfo.extent.height = h;
+    imageCreateInfo.extent.depth = 1.0f;
+    imageCreateInfo.mipLevels = 1;
+    imageCreateInfo.arrayLayers = 1;
+    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageCreateInfo.usage = usage;
+    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VmaAllocationCreateInfo allocationCreateInfo = {};
+    allocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+    VkImage image = VK_NULL_HANDLE;
+    VkImageView imageView = VK_NULL_HANDLE;
+    VmaAllocation allocation = VK_NULL_HANDLE;
+    VmaAllocationInfo allocationInfo = {};
+    err = vmaCreateImage(allocator, &imageCreateInfo, &allocationCreateInfo, &image, &allocation, &allocationInfo);
+    VK_CHECK_ERROR(err);
+
+    VkImageViewCreateInfo imageViewCreateInfo = {};
+    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageViewCreateInfo.image = image;
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCreateInfo.format = format;
+
+    err = vkCreateImageView(device, &imageViewCreateInfo, VK_NULL_HANDLE, &imageView);
+    VK_CHECK_ERROR(err);
+
+    *pImage = (Image_T *) malloc(sizeof(Image_T));
+
+    (*pImage)->vkImage = image;
+    (*pImage)->vkImageView = imageView;
+    (*pImage)->allocation = allocation;
+    (*pImage)->allocationInfo = allocationInfo;
+    (*pImage)->width = w;
+    (*pImage)->height = h;
+
+    return err;
 }
 
 VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipeline)
