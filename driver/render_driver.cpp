@@ -20,6 +20,7 @@ struct Texture2D_T {
     VkImage vkImage = VK_NULL_HANDLE;
     VkImageView vkImageView = VK_NULL_HANDLE;
     VmaAllocation allocation = VK_NULL_HANDLE;
+    VkSampler sampler = VK_NULL_HANDLE;
     VmaAllocationInfo allocationInfo = {};
     uint32_t width = 0;
     uint32_t height = 0;
@@ -243,12 +244,12 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipelin
 
     /* VkVertexInputAttributeDescription */
     VkVertexInputAttributeDescription vertexInputAttributeDescriptions[] = {
-        { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
-        { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 3 },
+        { 0, 0, VK_FORMAT_R32G32_SFLOAT, 0 },
+        { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 2 },
     };
 
     VkVertexInputBindingDescription vertexInputBindingDescriptions[] = {
-        { 0, sizeof(float) * 6, VK_VERTEX_INPUT_RATE_VERTEX }
+        { 0, sizeof(float) * 5, VK_VERTEX_INPUT_RATE_VERTEX }
     };
 
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
@@ -360,6 +361,51 @@ void RenderDriver::DestroyPipeline(Pipeline pipeline)
     vkDestroyPipeline(device, pipeline->vkPipeline, VK_NULL_HANDLE);
     vkDestroyPipelineLayout(device, pipeline->vkPipelineLayout, VK_NULL_HANDLE);
     free(pipeline);
+}
+
+VkResult RenderDriver::CreateCommandBuffer(VkCommandBuffer *pCommandBuffer)
+{
+    VkResult err;
+
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo = {};
+    commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBufferAllocateInfo.commandBufferCount = 1;
+    commandBufferAllocateInfo.commandPool = commandPool;
+
+    err = vkAllocateCommandBuffers(device, &commandBufferAllocateInfo, pCommandBuffer);
+    VK_CHECK_ERROR(err);
+
+    return err;
+}
+
+void RenderDriver::DestroyCommandBuffer(VkCommandBuffer commandBuffer)
+{
+    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
+void RenderDriver::BeginCommandBuffer(VkCommandBuffer commandBuffer)
+{
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+}
+
+void RenderDriver::EndCommandBuffer(VkCommandBuffer commandBuffer)
+{
+    vkEndCommandBuffer(commandBuffer);
+}
+
+void RenderDriver::CmdCopyBuffer(VkCommandBuffer commandBuffer, Buffer srcBuffer, Buffer dstBuffer, VkDeviceSize size)
+{
+    VkBufferCopy copyRegion = {};
+    copyRegion.srcOffset = 0;
+    copyRegion.dstOffset = 0;
+    copyRegion.size = size;
+
+    vkCmdCopyBuffer(commandBuffer, srcBuffer->vkBuffer, dstBuffer->vkBuffer, size, nullptr);
 }
 
 void RenderDriver::RebuildSwapchain()

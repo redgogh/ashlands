@@ -10,6 +10,18 @@
 #include <direct.h>
 #endif
 
+struct Vertex
+{
+    float pos[2];
+    float color[3];
+};
+
+Vertex vertices[] = {
+    {0.0f, -0.5f}, {1.0f, 0.0f, 0.0f},
+    {0.5f, 0.5f}, {0.0f, 1.0f, 0.0f},
+    {-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f},
+};
+
 int main()
 {
 #ifdef WIN32
@@ -47,17 +59,15 @@ int main()
     assert(!err);
     driver->Initialize(surface);
 
+
+    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+    driver->CreateCommandBuffer(&commandBuffer);
+    driver->BeginCommandBuffer(commandBuffer);
+    driver->EndCommandBuffer(commandBuffer);
+    driver->DestroyCommandBuffer(commandBuffer);
+
     Pipeline pipeline = VK_NULL_HANDLE;
     driver->CreatePipeline("universal", &pipeline);
-    driver->DestroyPipeline(pipeline);
-
-    Buffer buffer = VK_NULL_HANDLE;
-    driver->CreateBuffer(1024, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &buffer);
-    driver->DestroyBuffer(buffer);
-
-    Texture2D texture = VK_NULL_HANDLE;
-    driver->CreateTexture2D(500, 500, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &texture);
-    driver->DestroyTexture2D(texture);
 
     while (!glfwWindowShouldClose(hwindow)) {
         glfwPollEvents();

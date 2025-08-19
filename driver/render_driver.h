@@ -32,6 +32,12 @@ public:
     void DestroyTexture2D(Texture2D Texture2D);
     VkResult CreatePipeline(const char *shaderName, Pipeline* pPipeline);
     void DestroyPipeline(Pipeline pipeline);
+    VkResult CreateCommandBuffer(VkCommandBuffer* pCommandBuffer);
+    void DestroyCommandBuffer(VkCommandBuffer commandBuffer);
+
+    void BeginCommandBuffer(VkCommandBuffer commandBuffer);
+    void EndCommandBuffer(VkCommandBuffer commandBuffer);
+    void CmdCopyBuffer(VkCommandBuffer commandBuffer, Buffer srcBuffer, Buffer dstBuffer, VkDeviceSize size);
 
     void RebuildSwapchain();
     void ReadBuffer(Buffer buffer, void* data, size_t size);
