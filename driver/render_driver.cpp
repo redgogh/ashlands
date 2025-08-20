@@ -406,8 +406,6 @@ void RenderDriver::SubmitQueue(VkCommandBuffer commandBuffer, VkFence fence)
 {
     VkResult err;
 
-    vkWaitForFences(device, 1, &fence, VK_TRUE, UINT32_MAX);
-
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.waitSemaphoreCount = 0;
@@ -421,6 +419,7 @@ void RenderDriver::SubmitQueue(VkCommandBuffer commandBuffer, VkFence fence)
     err = vkQueueSubmit(queue, 1, &submitInfo, fence);
     assert(!err);
 
+    vkWaitForFences(device, 1, &fence, VK_TRUE, UINT32_MAX);
     vkResetFences(device, 1, &fence);
 }
 
