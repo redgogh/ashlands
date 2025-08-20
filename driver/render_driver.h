@@ -37,11 +37,13 @@ public:
 
     void BeginCommandBuffer(VkCommandBuffer commandBuffer);
     void EndCommandBuffer(VkCommandBuffer commandBuffer);
-    void CmdCopyBuffer(VkCommandBuffer commandBuffer, Buffer srcBuffer, Buffer dstBuffer, VkDeviceSize size);
+    void SubmitQueue(VkCommandBuffer commandBuffer, VkFence fence);
+
+    void CopyBuffer(Buffer srcBuffer, uint64_t srcOffset, Buffer dstBuffer, uint64_t dstOffset, uint64_t size);
 
     void RebuildSwapchain();
-    void ReadBuffer(Buffer buffer, void* data, size_t size);
-    void WriteBuffer(Buffer buffer, void* data, size_t size);
+    void ReadBuffer(Buffer buffer, size_t size, void* data);
+    void WriteBuffer(Buffer buffer, size_t size, void* data);
 
     VkInstance GetInstance() const { return instance; }
     VkQueue GetGraphicsQueue() const { return queue; }
@@ -54,8 +56,12 @@ private:
     VkResult _CreateSwapchain(VkSwapchainKHR oldSwapchain);
     VkResult _CreateCommandPool();
     VkResult _CreateShaderModule(const char* shaderName, const char* stage, VkShaderModule* pShaderModule);
+    VkResult _CreateFence(VkFence* pFence);
+    VkResult _CreateSemaphore(VkSemaphore* pSemaphore);
 
     void _DestroySwapchain();
+    void _DestroyFence(VkFence fence);
+    void _DestroySemaphore(VkSemaphore semaphore);
 
     static VmaMemoryUsage _GuessMemoryUsage(VkBufferUsageFlags usage);
 
@@ -68,6 +74,7 @@ private:
     VmaAllocator allocator = VK_NULL_HANDLE;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
     VkCommandPool commandPool = VK_NULL_HANDLE;
+    VkFence submitFence = VK_NULL_HANDLE;
 
     // Vulkan swapchain resources
     uint32_t imageCount = 0;

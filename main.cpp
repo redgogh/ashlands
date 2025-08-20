@@ -59,19 +59,23 @@ int main()
     assert(!err);
     driver->Initialize(surface);
 
+    size_t bufferSize = sizeof(vertices);
 
-    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
-    driver->CreateCommandBuffer(&commandBuffer);
-    driver->BeginCommandBuffer(commandBuffer);
-    driver->EndCommandBuffer(commandBuffer);
-    driver->DestroyCommandBuffer(commandBuffer);
+    Buffer srcBuffer;
+    driver->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &srcBuffer);
+    driver->WriteBuffer(srcBuffer, bufferSize, vertices);
 
-    Pipeline pipeline = VK_NULL_HANDLE;
-    driver->CreatePipeline("universal", &pipeline);
+    Buffer dstBuffer;
+    driver->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, &dstBuffer);
+    driver->CopyBuffer(srcBuffer, 0, dstBuffer, 0, bufferSize);
 
-    while (!glfwWindowShouldClose(hwindow)) {
-        glfwPollEvents();
-    }
+    driver->DestroyBuffer(srcBuffer);
+
+    float tmp[2];
+    driver->ReadBuffer(dstBuffer, sizeof(float) * 2, tmp);
+    printf("x: %f, y: %f\n", tmp[0], tmp[1]);
+    driver->DestroyBuffer(dstBuffer);
+
 
     glfwDestroyWindow(hwindow);
     glfwTerminate();

@@ -75,6 +75,7 @@ RenderDriver::RenderDriver()
 
 RenderDriver::~RenderDriver()
 {
+    _DestroyFence(submitFence);
     vkDestroyCommandPool(device, commandPool, VK_NULL_HANDLE);
     // vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);
     _DestroySwapchain();
@@ -100,6 +101,9 @@ VkResult RenderDriver::Initialize(VkSurfaceKHR surface)
     VK_CHECK_ERROR(err);
 
     err = _CreateMemoryAllocator();
+    VK_CHECK_ERROR(err);
+
+    err = _CreateFence(&submitFence);
     VK_CHECK_ERROR(err);
 
     return err;
@@ -398,14 +402,43 @@ void RenderDriver::EndCommandBuffer(VkCommandBuffer commandBuffer)
     vkEndCommandBuffer(commandBuffer);
 }
 
-void RenderDriver::CmdCopyBuffer(VkCommandBuffer commandBuffer, Buffer srcBuffer, Buffer dstBuffer, VkDeviceSize size)
+void RenderDriver::SubmitQueue(VkCommandBuffer commandBuffer, VkFence fence)
 {
+    VkResult err;
+
+    vkWaitForFences(device, 1, &fence, VK_TRUE, UINT32_MAX);
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount = 0;
+    submitInfo.pWaitSemaphores = VK_NULL_HANDLE;
+    submitInfo.pWaitDstStageMask = VK_NULL_HANDLE;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+    submitInfo.signalSemaphoreCount = 0;
+    submitInfo.pSignalSemaphores = VK_NULL_HANDLE;
+
+    err = vkQueueSubmit(queue, 1, &submitInfo, fence);
+    assert(!err);
+
+    vkResetFences(device, 1, &fence);
+}
+
+void RenderDriver::CopyBuffer(Buffer srcBuffer, uint64_t srcOffset, Buffer dstBuffer, uint64_t dstOffset, uint64_t size)
+{
+    VkCommandBuffer commandBuffer;
+    CreateCommandBuffer(&commandBuffer);
+    BeginCommandBuffer(commandBuffer);
+
     VkBufferCopy copyRegion = {};
-    copyRegion.srcOffset = 0;
-    copyRegion.dstOffset = 0;
+    copyRegion.srcOffset = srcOffset;
+    copyRegion.dstOffset = dstOffset;
     copyRegion.size = size;
 
-    vkCmdCopyBuffer(commandBuffer, srcBuffer->vkBuffer, dstBuffer->vkBuffer, size, nullptr);
+    vkCmdCopyBuffer(commandBuffer, srcBuffer->vkBuffer, dstBuffer->vkBuffer, size, &copyRegion);
+
+    EndCommandBuffer(commandBuffer);
+    SubmitQueue(commandBuffer, submitFence);
 }
 
 void RenderDriver::RebuildSwapchain()
@@ -413,7 +446,7 @@ void RenderDriver::RebuildSwapchain()
     _CreateSwapchain(swapchain);
 }
 
-void RenderDriver::ReadBuffer(Buffer buffer, void *data, size_t size)
+void RenderDriver::ReadBuffer(Buffer buffer, size_t size, void *data)
 {
     void* src;
     vmaMapMemory(allocator, buffer->allocation, &src);
@@ -421,7 +454,7 @@ void RenderDriver::ReadBuffer(Buffer buffer, void *data, size_t size)
     vmaUnmapMemory(allocator, buffer->allocation);
 }
 
-void RenderDriver::WriteBuffer(Buffer buffer, void *data, size_t size)
+void RenderDriver::WriteBuffer(Buffer buffer, size_t size, void *data)
 {
     void* dst;
     vmaMapMemory(allocator, buffer->allocation, &dst);
@@ -672,6 +705,32 @@ VkResult RenderDriver::_CreateShaderModule(const char* shaderName, const char* s
     return err;
 }
 
+VkResult RenderDriver::_CreateFence(VkFence *pFence)
+{
+    VkResult err;
+
+    VkFenceCreateInfo fenceCreateInfo = {};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+    err = vkCreateFence(device, &fenceCreateInfo, VK_NULL_HANDLE, pFence);
+    VK_CHECK_ERROR(err);
+
+    return err;
+}
+
+VkResult RenderDriver::_CreateSemaphore(VkSemaphore *pSemaphore)
+{
+    VkResult err;
+
+    VkSemaphoreCreateInfo semaphoreCreateInfo = {};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    err = vkCreateSemaphore(device, &semaphoreCreateInfo, VK_NULL_HANDLE, pSemaphore);
+    VK_CHECK_ERROR(err);
+
+    return err;
+}
+
 void RenderDriver::_DestroySwapchain()
 {
     for (uint32_t i = 0; i < imageCount; i++)
@@ -679,6 +738,16 @@ void RenderDriver::_DestroySwapchain()
     swapchainImages.clear();
     swapchainImageViews.clear();
     vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);
+}
+
+void RenderDriver::_DestroyFence(VkFence fence)
+{
+    vkDestroyFence(device, fence, VK_NULL_HANDLE);
+}
+
+void RenderDriver::_DestroySemaphore(VkSemaphore semaphore)
+{
+    vkDestroySemaphore(device, semaphore, VK_NULL_HANDLE);
 }
 
 VmaMemoryUsage RenderDriver::_GuessMemoryUsage(VkBufferUsageFlags usage)
