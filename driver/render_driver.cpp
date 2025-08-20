@@ -475,9 +475,7 @@ VkResult RenderDriver::_CreateInstance()
     applicationInfo.apiVersion = VK_API_VERSION_1_3;
 
     const std::vector<const char*> layers = {
-#ifndef __APPLE__
         "VK_LAYER_KHRONOS_validation"
-#endif
     };
 
     const std::vector<const char*> extensions = {
