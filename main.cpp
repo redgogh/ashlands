@@ -76,7 +76,6 @@ int main()
     printf("x: %f, y: %f\n", tmp[0], tmp[1]);
     driver->DestroyBuffer(dstBuffer);
 
-
     glfwDestroyWindow(hwindow);
     glfwTerminate();
 

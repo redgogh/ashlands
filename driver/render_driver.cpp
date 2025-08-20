@@ -440,6 +440,45 @@ void RenderDriver::CopyBuffer(Buffer srcBuffer, uint64_t srcOffset, Buffer dstBu
     SubmitQueue(commandBuffer, submitFence);
 }
 
+void RenderDriver::CopyBufferToTexture(Buffer srcBuffer, Texture2D dstTexture, uint64_t size)
+{
+    VkCommandBuffer commandBuffer;
+    CreateCommandBuffer(&commandBuffer);
+    BeginCommandBuffer(commandBuffer);
+
+    VkBufferImageCopy copyRegion = {
+        .bufferOffset = 0,
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
+        .imageSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .mipLevel = 0,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
+        .imageOffset = { 0, 0, 0 },
+        .imageExtent = { dstTexture->width, dstTexture->height, 1 }
+    };
+
+    vkCmdCopyBufferToImage(
+        commandBuffer,
+        srcBuffer->vkBuffer,
+        dstTexture->vkImage,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1,
+        &copyRegion);
+
+    EndCommandBuffer(commandBuffer);
+    SubmitQueue(commandBuffer, submitFence);
+}
+
+void RenderDriver::WriteTexture2D(Texture2D texture, uint64_t size, void *pixels)
+{
+    Buffer stagingBuffer;
+    CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &stagingBuffer);
+    WriteBuffer(stagingBuffer, size, pixels);
+}
+
 void RenderDriver::RebuildSwapchain()
 {
     _CreateSwapchain(swapchain);
