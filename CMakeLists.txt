@@ -1,5 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.28.1...3.31)
-PROJECT(ashlands)
+PROJECT(capybara)
 
 SET(CMAKE_CXX_STANDARD 26)
 
@@ -7,6 +7,7 @@ INCLUDE_DIRECTORIES(./)
 INCLUDE_DIRECTORIES(SYSTEM "thirdparty" "include")
 
 ADD_SUBDIRECTORY("modules/volk")
+ADD_SUBDIRECTORY("modules/stb")
 
 IF (APPLE)
     LINK_DIRECTORIES("thirdparty/GLFW/libs/macOS/lib-x86_64")
@@ -23,6 +24,7 @@ ADD_EXECUTABLE(${PROJECT_NAME}
 
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} PRIVATE
   "volk"
+  "stb"
   "glfw3"
 )
 

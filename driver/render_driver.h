@@ -8,7 +8,7 @@
 #endif /* ENABLE_VOLK_LOADER */
 
 #include <vma/vk_mem_alloc.h>
-#include <ashlands/typedefs.h>
+#include <capybara/typedefs.h>
 
 // std
 #include <assert.h>
@@ -37,14 +37,13 @@ public:
 
     void BeginCommandBuffer(VkCommandBuffer commandBuffer);
     void EndCommandBuffer(VkCommandBuffer commandBuffer);
-    void CmdTextureMemoryBarrier(VkCommandBuffer commandBuffer, Texture2D texture, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void CmdTextureMemoryBarrier(VkCommandBuffer commandBuffer, Texture2D texture, VkImageLayout newLayout);
     void SubmitQueue(VkCommandBuffer commandBuffer, VkFence fence);
 
     void RebuildSwapchain();
     void ReadBuffer(Buffer buffer, size_t size, void* data);
     void WriteBuffer(Buffer buffer, size_t size, void* data);
     void CopyBuffer(Buffer srcBuffer, uint64_t srcOffset, Buffer dstBuffer, uint64_t dstOffset, uint64_t size);
-    void CopyBufferToTexture(Buffer srcBuffer, Texture2D dstTexture, uint64_t size);
     void WriteTexture2D(Texture2D texture, uint64_t size, void* pixels);
 
     VkInstance GetInstance() const { return instance; }

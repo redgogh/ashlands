@@ -10,6 +10,8 @@
 #include <direct.h>
 #endif
 
+#include <stb/stb_image.h>
+
 struct Vertex
 {
     float pos[2];
@@ -47,7 +49,7 @@ int main()
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     GLFWwindow* hwindow =
-        glfwCreateWindow(800, 600, "AshLands", nullptr, nullptr);
+        glfwCreateWindow(800, 600, "capybara", nullptr, nullptr);
 
     if (hwindow == nullptr)
         throw std::runtime_error("Failed to create GLFW window");
@@ -59,22 +61,16 @@ int main()
     assert(!err);
     driver->Initialize(surface);
 
-    size_t bufferSize = sizeof(vertices);
+    stbi_uc* pixels;
+    int w, h, channels;
+    pixels = stbi_load("/Users/redgogh/Desktop/Snipaste_2025-08-21_17-19-47.png", &w, &h, &channels, 0);
 
-    Buffer srcBuffer;
-    driver->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &srcBuffer);
-    driver->WriteBuffer(srcBuffer, bufferSize, vertices);
+    Texture2D texture;
+    driver->CreateTexture2D(w, h, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &texture);
+    driver->WriteTexture2D(texture, w * h * channels, pixels);
 
-    Buffer dstBuffer;
-    driver->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, &dstBuffer);
-    driver->CopyBuffer(srcBuffer, 0, dstBuffer, 0, bufferSize);
-
-    driver->DestroyBuffer(srcBuffer);
-
-    float tmp[2];
-    driver->ReadBuffer(dstBuffer, sizeof(float) * 2, tmp);
-    printf("x: %f, y: %f\n", tmp[0], tmp[1]);
-    driver->DestroyBuffer(dstBuffer);
+    stbi_image_free(pixels);
+    driver->DestroyTexture2D(texture);
 
     glfwDestroyWindow(hwindow);
     glfwTerminate();

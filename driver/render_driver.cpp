@@ -402,6 +402,73 @@ void RenderDriver::EndCommandBuffer(VkCommandBuffer commandBuffer)
     vkEndCommandBuffer(commandBuffer);
 }
 
+void RenderDriver::CmdTextureMemoryBarrier(VkCommandBuffer commandBuffer, Texture2D texture, VkImageLayout newLayout)
+{
+    VkImageLayout oldLayout = texture->layout;
+
+    VkAccessFlags srcAccessMask = 0;
+    VkAccessFlags dstAccessMask = 0;
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        srcAccessMask = 0;
+        dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+        dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+        srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        goto DO_MEMORY_IAMGE_BARRIER_TAG;
+    }
+
+    if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+        dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        goto DO_MEMORY_IAMGE_BARRIER_TAG;
+    }
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+        srcAccessMask = 0;
+        dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        goto DO_MEMORY_IAMGE_BARRIER_TAG;
+    }
+
+    printf("[vulkan] error - unsupported image layout transition!");
+    return;
+
+DO_MEMORY_IAMGE_BARRIER_TAG:
+    VkImageMemoryBarrier barrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = srcAccessMask,
+        .dstAccessMask = dstAccessMask,
+        .oldLayout = oldLayout,
+        .newLayout = newLayout,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = texture->vkImage,
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        }
+    };
+
+    vkCmdPipelineBarrier(commandBuffer,
+                         srcStageMask,
+                         dstStageMask,
+                         0,
+                         0, VK_NULL_HANDLE,
+                         0, VK_NULL_HANDLE,
+                         1, &barrier);
+
+    texture->layout = newLayout;
+}
+
 void RenderDriver::SubmitQueue(VkCommandBuffer commandBuffer, VkFence fence)
 {
     VkResult err;
@@ -440,11 +507,17 @@ void RenderDriver::CopyBuffer(Buffer srcBuffer, uint64_t srcOffset, Buffer dstBu
     SubmitQueue(commandBuffer, submitFence);
 }
 
-void RenderDriver::CopyBufferToTexture(Buffer srcBuffer, Texture2D dstTexture, uint64_t size)
+void RenderDriver::WriteTexture2D(Texture2D texture, uint64_t size, void *pixels)
 {
+    Buffer stagingBuffer;
+    CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &stagingBuffer);
+    WriteBuffer(stagingBuffer, size, pixels);
+
     VkCommandBuffer commandBuffer;
     CreateCommandBuffer(&commandBuffer);
     BeginCommandBuffer(commandBuffer);
+
+    CmdTextureMemoryBarrier(commandBuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     VkBufferImageCopy copyRegion = {
         .bufferOffset = 0,
@@ -457,26 +530,21 @@ void RenderDriver::CopyBufferToTexture(Buffer srcBuffer, Texture2D dstTexture, u
             .layerCount = 1,
         },
         .imageOffset = { 0, 0, 0 },
-        .imageExtent = { dstTexture->width, dstTexture->height, 1 }
+        .imageExtent = { texture->width, texture->height, 1 }
     };
 
     vkCmdCopyBufferToImage(
         commandBuffer,
-        srcBuffer->vkBuffer,
-        dstTexture->vkImage,
+        stagingBuffer->vkBuffer,
+        texture->vkImage,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1,
         &copyRegion);
 
     EndCommandBuffer(commandBuffer);
     SubmitQueue(commandBuffer, submitFence);
-}
 
-void RenderDriver::WriteTexture2D(Texture2D texture, uint64_t size, void *pixels)
-{
-    Buffer stagingBuffer;
-    CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &stagingBuffer);
-    WriteBuffer(stagingBuffer, size, pixels);
+    DestroyBuffer(stagingBuffer);
 }
 
 void RenderDriver::RebuildSwapchain()
@@ -506,9 +574,9 @@ VkResult RenderDriver::_CreateInstance()
 
     VkApplicationInfo applicationInfo = {};
     applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    applicationInfo.pApplicationName = "AshLands";
+    applicationInfo.pApplicationName = "capybara";
     applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    applicationInfo.pEngineName = "AshLands";
+    applicationInfo.pEngineName = "capybara";
     applicationInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     applicationInfo.apiVersion = VK_API_VERSION_1_3;
 
