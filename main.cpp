@@ -63,11 +63,12 @@ int main()
 
     stbi_uc* pixels;
     int w, h, channels;
-    pixels = stbi_load("/Users/redgogh/Desktop/Snipaste_2025-08-21_17-19-47.png", &w, &h, &channels, 0);
+    char path[] = "/Users/redgogh/Desktop/Snipaste_2025-08-21_17-19-47.png";
+    pixels = stbi_load(path, &w, &h, &channels, STBI_rgb_alpha);
 
     Texture2D texture;
-    driver->CreateTexture2D(w, h, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &texture);
-    driver->WriteTexture2D(texture, w * h * channels, pixels);
+    driver->CreateTexture2D(w, h, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, &texture);
+    driver->WriteTexture2D(texture, w * h * 4, pixels);
 
     stbi_image_free(pixels);
     driver->DestroyTexture2D(texture);
