@@ -414,7 +414,6 @@ void RenderDriver::CmdTextureMemoryBarrier(VkCommandBuffer commandBuffer, Textur
     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         srcAccessMask = 0;
         dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-        dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
         srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
         goto DO_MEMORY_IAMGE_BARRIER_TAG;
