@@ -45,7 +45,7 @@ public:
     void CmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t count, Buffer *pBuffers, VkDeviceSize *pOffsets);
     void CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount);
     void SubmitQueue(VkCommandBuffer commandBuffer, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore, VkFence fence);
-    void SubmitPresentQueue(VkCommandBuffer commandBuffer);
+    void SubmitAndPresentFrame(VkCommandBuffer commandBuffer);
 
     void AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *pFrameIndex);
     void RebuildSwapchain();

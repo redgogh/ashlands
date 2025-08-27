@@ -45,7 +45,7 @@ int main()
 
     glfwInit();
 
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+//    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     GLFWwindow* hwindow =
@@ -84,7 +84,7 @@ int main()
         driver->CmdDraw(commandBuffer, 3);
         driver->CmdEndRendering(commandBuffer);
         driver->EndCommandBuffer(commandBuffer);
-        driver->SubmitPresentQueue(commandBuffer);
+        driver->SubmitAndPresentFrame(commandBuffer);
     }
 
     driver->DeviceWaitIdle();

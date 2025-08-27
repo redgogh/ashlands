@@ -612,7 +612,7 @@ void RenderDriver::SubmitQueue(VkCommandBuffer commandBuffer, VkSemaphore waitSe
     assert(!err);
 }
 
-void RenderDriver::SubmitPresentQueue(VkCommandBuffer commandBuffer)
+void RenderDriver::SubmitAndPresentFrame(VkCommandBuffer commandBuffer)
 {
     VkResult err;
 
@@ -704,6 +704,15 @@ void RenderDriver::AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *
 
     vkWaitForFences(device, 1, &inFlightFences[frameIndex], VK_TRUE, UINT32_MAX);
     vkResetFences(device, 1, &inFlightFences[frameIndex]);
+
+    VkSurfaceCapabilitiesKHR capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &capabilities);
+
+    VkExtent2D currentExtent2D = capabilities.currentExtent;
+
+    if (currentExtent2D.width != swapchainExtent2D.width || currentExtent2D.height != swapchainExtent2D.height)
+        _CreateSwapchain(swapchain);
+
 }
 
 void RenderDriver::RebuildSwapchain()
