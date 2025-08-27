@@ -577,9 +577,9 @@ void RenderDriver::CmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t 
     vkCmdBindVertexBuffers(commandBuffer, 0, count, std::data(buffers), pOffsets);
 }
 
-void RenderDriver::CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t firstVertex)
+void RenderDriver::CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount)
 {
-    vkCmdDraw(commandBuffer, vertexCount, firstVertex, VK_WHOLE_SIZE, 0);
+    vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
 }
 
 void RenderDriver::SubmitQueue(VkCommandBuffer commandBuffer, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore, VkFence fence)
@@ -628,6 +628,8 @@ void RenderDriver::SubmitPresentQueue(VkCommandBuffer commandBuffer)
 
     err = vkQueuePresentKHR(queue, &presentInfo);
     assert(!err);
+
+    currentFrame = (currentFrame + 1) % imageCount;
 }
 
 void RenderDriver::CopyBuffer(Buffer srcBuffer, uint64_t srcOffset, Buffer dstBuffer, uint64_t dstOffset, uint64_t size)
