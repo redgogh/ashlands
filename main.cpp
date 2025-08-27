@@ -64,16 +64,18 @@ int main()
     Pipeline pipeline;
     driver->CreatePipeline("universal", &pipeline);
 
-    VkCommandBuffer commandBuffer;
-    driver->CreateCommandBuffer(&commandBuffer);
-
     Buffer vertexBuffer;
     size_t vertexBufferSize = sizeof(vertices);
     driver->CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &vertexBuffer);
     driver->WriteBuffer(vertexBuffer, vertexBufferSize, vertices);
 
+    uint32_t frameIndex;
+    VkCommandBuffer commandBuffer;
+
     while (!glfwWindowShouldClose(hwindow)) {
         glfwPollEvents();
+
+        driver->AcquiredNextFrame(&commandBuffer, &frameIndex);
 
         driver->BeginCommandBuffer(commandBuffer);
         driver->CmdBeginRendering(commandBuffer);
@@ -85,6 +87,7 @@ int main()
         driver->SubmitPresentQueue(commandBuffer);
     }
 
+    driver->DeviceWaitIdle();
     driver->DestroyPipeline(pipeline);
     driver->DestroyBuffer(vertexBuffer);
 

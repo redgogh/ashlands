@@ -47,11 +47,13 @@ public:
     void SubmitQueue(VkCommandBuffer commandBuffer, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore, VkFence fence);
     void SubmitPresentQueue(VkCommandBuffer commandBuffer);
 
+    void AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *pFrameIndex);
     void RebuildSwapchain();
     void ReadBuffer(Buffer buffer, size_t size, void* data);
     void WriteBuffer(Buffer buffer, size_t size, void* data);
     void CopyBuffer(Buffer srcBuffer, uint64_t srcOffset, Buffer dstBuffer, uint64_t dstOffset, uint64_t size);
     void WriteTexture2D(Texture2D texture, uint64_t size, void* pixels);
+    void DeviceWaitIdle();
 
     VkInstance GetInstance() const { return instance; }
     VkQueue GetGraphicsQueue() const { return queue; }
@@ -71,6 +73,10 @@ private:
     void _DestroyFence(VkFence fence);
     void _DestroySemaphore(VkSemaphore semaphore);
 
+    VkResult _InitSyncObjects();
+
+    void _DestroySyncObjects();
+
     static VmaMemoryUsage _GuessMemoryUsage(VkBufferUsageFlags usage);
 
     // Vulkan handles
@@ -85,15 +91,19 @@ private:
     VkFence submitFence = VK_NULL_HANDLE;
 
     // Vulkan swapchain resources
-    uint32_t imageCount = 0;
+    uint32_t minImageCount = 0;
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
     VkExtent2D swapchainExtent2D = {};
-    uint32_t frameIndex = 0;
     uint32_t imageIndex = 0;
+
+    // Sync objects
+    uint32_t frameIndex = 0;
+    uint32_t MAX_FRAMES_IN_FLIGHT = 2;
+    std::vector<VkCommandBuffer> frameCommandBuffers;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
-    VkFence imageAvailableFence = VK_NULL_HANDLE;
+    std::vector<VkFence> inFlightFences;
 
     uint32_t queueFamilyIndex = UINT32_MAX;
     VkSurfaceFormatKHR surfaceFormat = {};
