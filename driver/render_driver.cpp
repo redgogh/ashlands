@@ -399,7 +399,12 @@ VkResult RenderDriver::CreateCommandBuffer(VkCommandBuffer *pCommandBuffer)
 
 void RenderDriver::DestroyCommandBuffer(VkCommandBuffer commandBuffer)
 {
-    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+    DestroyCommandBuffers(1, &commandBuffer);
+}
+
+void RenderDriver::DestroyCommandBuffers(uint32_t count, VkCommandBuffer* pCommandBuffers)
+{
+    vkFreeCommandBuffers(device, commandPool, count, pCommandBuffers);
 }
 
 void RenderDriver::BeginCommandBuffer(VkCommandBuffer commandBuffer)
@@ -1068,7 +1073,7 @@ VkResult RenderDriver::_InitSyncObjects()
 
 void RenderDriver::_DestroySyncObjects()
 {
-    vkFreeCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT, std::data(frameCommandBuffers));
+    DestroyCommandBuffers(MAX_FRAMES_IN_FLIGHT, std::data(frameCommandBuffers));
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         _DestroyFence(inFlightFences[i]);

@@ -34,6 +34,7 @@ public:
     void DestroyPipeline(Pipeline pipeline);
     VkResult CreateCommandBuffer(VkCommandBuffer* pCommandBuffer);
     void DestroyCommandBuffer(VkCommandBuffer commandBuffer);
+    void DestroyCommandBuffers(uint32_t count, VkCommandBuffer* pCommandBuffers);
 
     void BeginCommandBuffer(VkCommandBuffer commandBuffer);
     void EndCommandBuffer(VkCommandBuffer commandBuffer);
