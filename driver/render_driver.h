@@ -89,7 +89,8 @@ private:
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
     VkExtent2D swapchainExtent2D = {};
-    uint32_t currentFrame = 0;
+    uint32_t frameIndex = 0;
+    uint32_t imageIndex = 0;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     VkFence imageAvailableFence = VK_NULL_HANDLE;

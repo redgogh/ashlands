@@ -482,17 +482,17 @@ DO_MEMORY_IAMGE_BARRIER_TAG:
 
 void RenderDriver::CmdBeginRendering(VkCommandBuffer commandBuffer)
 {
-    vkAcquireNextImageKHR(device, swapchain, UINT32_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &currentFrame);
+    frameIndex = (frameIndex + 1) % imageCount;
+    vkAcquireNextImageKHR(device, swapchain, UINT32_MAX, imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, &imageIndex);
 
     VkRenderingAttachmentInfo colorRenderingAttachment = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageView = swapchainImageViews[currentFrame],
+        .imageView = swapchainImageViews[imageIndex],
         .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         .clearValue = {
-            .color = { 0.0f, 0.0f, 0.0f, 1.0f },
-            .depthStencil = { 1.0f, 0 }
+            .color = { 0.0f, 0.0f, 0.0f, 1.0f }
         }
     };
 
@@ -520,13 +520,13 @@ void RenderDriver::CmdEndRendering(VkCommandBuffer commandBuffer)
         .dstAccessMask = 0,
         .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        .image = swapchainImages[currentFrame],
+        .image = swapchainImages[imageIndex],
         .subresourceRange = {
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .layerCount = 1,
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
+            .layerCount = 1,
         }
     };
 
@@ -555,8 +555,8 @@ void RenderDriver::CmdBindPipeline(VkCommandBuffer commandBuffer, Pipeline pipel
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
     VkRect2D scissor = {
+        .offset = { 0, 0 },
         .extent = swapchainExtent2D,
-        .offset = { 0, 0 }
     };
 
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
@@ -615,21 +615,19 @@ void RenderDriver::SubmitPresentQueue(VkCommandBuffer commandBuffer)
 {
     VkResult err;
 
-    SubmitQueue(commandBuffer, imageAvailableSemaphores[currentFrame], renderFinishedSemaphores[currentFrame], submitFence);
+    SubmitQueue(commandBuffer, imageAvailableSemaphores[frameIndex], renderFinishedSemaphores[frameIndex], submitFence);
 
     VkPresentInfoKHR presentInfo = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &renderFinishedSemaphores[currentFrame],
+        .pWaitSemaphores = &renderFinishedSemaphores[frameIndex],
         .swapchainCount = 1,
         .pSwapchains = &swapchain,
-        .pImageIndices = &currentFrame,
+        .pImageIndices = &imageIndex,
     };
 
     err = vkQueuePresentKHR(queue, &presentInfo);
     assert(!err);
-
-    currentFrame = (currentFrame + 1) % imageCount;
 }
 
 void RenderDriver::CopyBuffer(Buffer srcBuffer, uint64_t srcOffset, Buffer dstBuffer, uint64_t dstOffset, uint64_t size)
@@ -996,6 +994,8 @@ VkResult RenderDriver::_CreateSemaphore(VkSemaphore *pSemaphore)
 
 void RenderDriver::_DestroySwapchain()
 {
+    vkDeviceWaitIdle(device);
+
     for (uint32_t i = 0; i < imageCount; i++) {
         vkDestroyImageView(device, swapchainImageViews[i], VK_NULL_HANDLE);
         _DestroySemaphore(imageAvailableSemaphores[i]);

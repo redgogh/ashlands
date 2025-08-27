@@ -19,9 +19,9 @@ struct Vertex
 };
 
 Vertex vertices[] = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},  // 红色
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},   // 绿色
-    {{0.0f, 0.5f}, {0.0f, 0.0f, 1.0f}}     // 蓝色
+    {{0.0, -0.5}, {1.0f, 0.0f, 0.0f}},
+    {{-0.5, 0.5}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f,   0.5f}, {0.0f, 0.0f, 1.0f}}
 };
 
 int main()
@@ -79,11 +79,14 @@ int main()
         driver->CmdBeginRendering(commandBuffer);
         driver->CmdBindPipeline(commandBuffer, pipeline);
         driver->CmdBindVertexBuffer(commandBuffer, vertexBuffer, 0);
-        driver->CmdDraw(commandBuffer, 2);
+        driver->CmdDraw(commandBuffer, 3);
         driver->CmdEndRendering(commandBuffer);
         driver->EndCommandBuffer(commandBuffer);
         driver->SubmitPresentQueue(commandBuffer);
     }
+
+    driver->DestroyPipeline(pipeline);
+    driver->DestroyBuffer(vertexBuffer);
 
     glfwDestroyWindow(hwindow);
     glfwTerminate();
