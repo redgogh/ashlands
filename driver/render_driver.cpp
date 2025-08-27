@@ -33,12 +33,14 @@ struct Buffer_T {
     VmaAllocation allocation = VK_NULL_HANDLE;
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM;
     VkDeviceSize size = 0;
+    VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_UNKNOWN;
     VmaAllocationInfo allocationInfo;
 };
 
 struct Pipeline_T {
     VkPipeline vkPipeline = VK_NULL_HANDLE;
     VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
+    VkPipelineBindPoint vkBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 };
 
 RenderDriver::RenderDriver()
@@ -75,6 +77,7 @@ RenderDriver::RenderDriver()
 
 RenderDriver::~RenderDriver()
 {
+    _DestroyFence(imageAvailableFence);
     _DestroyFence(submitFence);
     vkDestroyCommandPool(device, commandPool, VK_NULL_HANDLE);
     // vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);
@@ -106,6 +109,9 @@ VkResult RenderDriver::Initialize(VkSurfaceKHR surface)
     err = _CreateFence(&submitFence);
     VK_CHECK_ERROR(err);
 
+    err = _CreateFence(&imageAvailableFence);
+    VK_CHECK_ERROR(err);
+
     return err;
 }
 
@@ -134,6 +140,7 @@ VkResult RenderDriver::CreateBuffer(const size_t size, VkBufferUsageFlags usage,
 
     (*pBuffer)->usage = usage;
     (*pBuffer)->size = size;
+    (*pBuffer)->memoryUsage = allocationCreateInfo.usage;
 
     return err;
 }
@@ -158,7 +165,7 @@ VkResult RenderDriver::CreateTexture2D(uint32_t w, uint32_t h, VkFormat format, 
     imageCreateInfo.mipLevels = 1;
     imageCreateInfo.arrayLayers = 1;
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageCreateInfo.usage = usage;
+    imageCreateInfo.usage = (usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -269,11 +276,17 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipelin
     inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
 
+    /* VkPipelineViewportStateCreateInfo */
+    VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
+    viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportStateCreateInfo.viewportCount = 1;
+    viewportStateCreateInfo.scissorCount = 1;
+
     /* VkPipelineRasterizationStateCreateInfo */
     VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {};
     rasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizationStateCreateInfo.depthClampEnable = VK_FALSE;                   // 超出深度范围裁剪而不是 clamp
-    rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_TRUE;             // 不丢弃几何体
+    rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;            // 不丢弃几何体
     rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;            // 填充多边形方式点、线、面
     rasterizationStateCreateInfo.lineWidth = 1.0f;                              // 线宽
     rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;              // 背面剔除，可改 NONE 或 FRONT
@@ -314,8 +327,7 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipelin
     /* VkPipelineDynamicStateCreateInfo[] */
     VkDynamicState dynamicStates[] = {
         VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR,
-        VK_DYNAMIC_STATE_RASTERIZER_DISCARD_ENABLE,
+        VK_DYNAMIC_STATE_SCISSOR
     };
 
     VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
@@ -337,7 +349,7 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipelin
     pipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
     pipelineCreateInfo.pInputAssemblyState = &inputAssemblyStateCreateInfo;
     pipelineCreateInfo.pTessellationState = VK_NULL_HANDLE;
-    pipelineCreateInfo.pViewportState = VK_NULL_HANDLE;
+    pipelineCreateInfo.pViewportState = &viewportStateCreateInfo;
     pipelineCreateInfo.pRasterizationState = &rasterizationStateCreateInfo;
     pipelineCreateInfo.pMultisampleState = &multisampleStateCreateInfo;
     pipelineCreateInfo.pDepthStencilState = VK_NULL_HANDLE;
@@ -468,25 +480,154 @@ DO_MEMORY_IAMGE_BARRIER_TAG:
     texture->layout = newLayout;
 }
 
-void RenderDriver::SubmitQueue(VkCommandBuffer commandBuffer, VkFence fence)
+void RenderDriver::CmdBeginRendering(VkCommandBuffer commandBuffer)
+{
+    vkAcquireNextImageKHR(device, swapchain, UINT32_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &currentFrame);
+
+    VkRenderingAttachmentInfo colorRenderingAttachment = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = swapchainImageViews[currentFrame],
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = {
+            .color = { 0.0f, 0.0f, 0.0f, 1.0f },
+            .depthStencil = { 1.0f, 0 }
+        }
+    };
+
+    VkRenderingInfo renderingInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .renderArea = {
+            .offset = { 0, 0 },
+            .extent = swapchainExtent2D
+        },
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &colorRenderingAttachment
+    };
+
+    vkCmdBeginRendering(commandBuffer, &renderingInfo);
+}
+
+void RenderDriver::CmdEndRendering(VkCommandBuffer commandBuffer)
+{
+    vkCmdEndRendering(commandBuffer);
+
+    VkImageMemoryBarrier imageMemoryBarrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .dstAccessMask = 0,
+        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .image = swapchainImages[currentFrame],
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+        }
+    };
+
+    vkCmdPipelineBarrier(commandBuffer,
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                         0,
+                         0, VK_NULL_HANDLE,
+                         0, VK_NULL_HANDLE,
+                         1, &imageMemoryBarrier);
+}
+
+void RenderDriver::CmdBindPipeline(VkCommandBuffer commandBuffer, Pipeline pipeline)
+{
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->vkPipeline);
+
+    VkViewport viewport = {
+        .x = 0,
+        .y = 0,
+        .width = static_cast<float>(swapchainExtent2D.width),
+        .height = static_cast<float>(swapchainExtent2D.height),
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f
+    };
+
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor = {
+        .extent = swapchainExtent2D,
+        .offset = { 0, 0 }
+    };
+
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+}
+
+void RenderDriver::CmdBindVertexBuffer(VkCommandBuffer commandBuffer, Buffer buffer, VkDeviceSize offset)
+{
+    CmdBindVertexBuffers(commandBuffer, 1, &buffer, &offset);
+}
+
+void RenderDriver::CmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t count, Buffer *pBuffers, VkDeviceSize *pOffsets)
+{
+    std::vector<VkBuffer> buffers(count);
+
+    for (uint32_t i = 0; i < count; i++)
+        buffers[i] = pBuffers[i]->vkBuffer;
+
+    vkCmdBindVertexBuffers(commandBuffer, 0, count, std::data(buffers), pOffsets);
+}
+
+void RenderDriver::CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t firstVertex)
+{
+    vkCmdDraw(commandBuffer, vertexCount, firstVertex, VK_WHOLE_SIZE, 0);
+}
+
+void RenderDriver::SubmitQueue(VkCommandBuffer commandBuffer, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore, VkFence fence)
 {
     VkResult err;
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.waitSemaphoreCount = 0;
-    submitInfo.pWaitSemaphores = VK_NULL_HANDLE;
-    submitInfo.pWaitDstStageMask = VK_NULL_HANDLE;
+
+    if (waitSemaphore != VK_NULL_HANDLE) {
+        VkPipelineStageFlags pipelineStageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &waitSemaphore;
+        submitInfo.pWaitDstStageMask = pipelineStageFlags;
+    }
+
+    if (signalSemaphore != VK_NULL_HANDLE) {
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &signalSemaphore;
+    }
+
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
-    submitInfo.signalSemaphoreCount = 0;
-    submitInfo.pSignalSemaphores = VK_NULL_HANDLE;
 
     err = vkQueueSubmit(queue, 1, &submitInfo, fence);
     assert(!err);
 
     vkWaitForFences(device, 1, &fence, VK_TRUE, UINT32_MAX);
     vkResetFences(device, 1, &fence);
+}
+
+void RenderDriver::SubmitPresentQueue(VkCommandBuffer commandBuffer)
+{
+    VkResult err;
+
+    SubmitQueue(commandBuffer, imageAvailableSemaphores[currentFrame], renderFinishedSemaphores[currentFrame], submitFence);
+
+    VkPresentInfoKHR presentInfo = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &renderFinishedSemaphores[currentFrame],
+        .swapchainCount = 1,
+        .pSwapchains = &swapchain,
+        .pImageIndices = &currentFrame,
+    };
+
+    err = vkQueuePresentKHR(queue, &presentInfo);
+    assert(!err);
 }
 
 void RenderDriver::CopyBuffer(Buffer srcBuffer, uint64_t srcOffset, Buffer dstBuffer, uint64_t dstOffset, uint64_t size)
@@ -500,10 +641,10 @@ void RenderDriver::CopyBuffer(Buffer srcBuffer, uint64_t srcOffset, Buffer dstBu
     copyRegion.dstOffset = dstOffset;
     copyRegion.size = size;
 
-    vkCmdCopyBuffer(commandBuffer, srcBuffer->vkBuffer, dstBuffer->vkBuffer, size, &copyRegion);
+    vkCmdCopyBuffer(commandBuffer, srcBuffer->vkBuffer, dstBuffer->vkBuffer, 1, &copyRegion);
 
     EndCommandBuffer(commandBuffer);
-    SubmitQueue(commandBuffer, submitFence);
+    SubmitQueue(commandBuffer, VK_NULL_HANDLE, VK_NULL_HANDLE, submitFence);
 }
 
 void RenderDriver::WriteTexture2D(Texture2D texture, uint64_t size, void *pixels)
@@ -541,7 +682,7 @@ void RenderDriver::WriteTexture2D(Texture2D texture, uint64_t size, void *pixels
         &copyRegion);
 
     EndCommandBuffer(commandBuffer);
-    SubmitQueue(commandBuffer, submitFence);
+    SubmitQueue(commandBuffer, VK_NULL_HANDLE, VK_NULL_HANDLE, submitFence);
 
     DestroyBuffer(stagingBuffer);
 }
@@ -561,6 +702,16 @@ void RenderDriver::ReadBuffer(Buffer buffer, size_t size, void *data)
 
 void RenderDriver::WriteBuffer(Buffer buffer, size_t size, void *data)
 {
+    if (buffer->memoryUsage == VMA_MEMORY_USAGE_GPU_ONLY) {
+        Buffer stagingBuffer;
+        CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &stagingBuffer);
+        WriteBuffer(stagingBuffer, size, data);
+        CopyBuffer(stagingBuffer, 0, buffer, 0, size);
+        DestroyBuffer(stagingBuffer);
+        return;
+    }
+
+    /* buffer->memoryUsage != VMA_MEMORY_USAGE_GPU_ONLY */
     void* dst;
     vmaMapMemory(allocator, buffer->allocation, &dst);
     memcpy(dst, data, size);
@@ -697,6 +848,8 @@ VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
     if (imageCount > surfaceCapabilities.maxImageCount)
         imageCount = surfaceCapabilities.maxImageCount;
 
+    swapchainExtent2D = surfaceCapabilities.currentExtent;
+
     uint32_t formatCount = 0;
     err = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, VK_NULL_HANDLE);
     VK_CHECK_ERROR(err);
@@ -713,7 +866,7 @@ VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
     swapchainCreateInfo.minImageCount = imageCount;
     swapchainCreateInfo.imageFormat = surfaceFormat.format;
     swapchainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
-    swapchainCreateInfo.imageExtent = surfaceCapabilities.currentExtent;
+    swapchainCreateInfo.imageExtent = swapchainExtent2D;
     swapchainCreateInfo.imageArrayLayers = 1;
     swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapchainCreateInfo.preTransform = surfaceCapabilities.currentTransform;
@@ -737,6 +890,8 @@ VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
 
     swapchainImages.resize(imageCount);
     swapchainImageViews.resize(imageCount);
+    imageAvailableSemaphores.resize(imageCount);
+    renderFinishedSemaphores.resize(imageCount);
 
     err = vkGetSwapchainImagesKHR(device, swapchain, &imageCount, std::data(swapchainImages));
     VK_CHECK_ERROR(err);
@@ -763,6 +918,9 @@ VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
 
         err = vkCreateImageView(device, &imageViewCreateInfo, VK_NULL_HANDLE, &swapchainImageViews[i]);
         VK_CHECK_ERROR(err);
+
+        _CreateSemaphore(&imageAvailableSemaphores[i]);
+        _CreateSemaphore(&renderFinishedSemaphores[i]);
     }
 
     return err;
@@ -836,8 +994,12 @@ VkResult RenderDriver::_CreateSemaphore(VkSemaphore *pSemaphore)
 
 void RenderDriver::_DestroySwapchain()
 {
-    for (uint32_t i = 0; i < imageCount; i++)
+    for (uint32_t i = 0; i < imageCount; i++) {
         vkDestroyImageView(device, swapchainImageViews[i], VK_NULL_HANDLE);
+        _DestroySemaphore(imageAvailableSemaphores[i]);
+        _DestroySemaphore(renderFinishedSemaphores[i]);
+    }
+
     swapchainImages.clear();
     swapchainImageViews.clear();
     vkDestroySwapchainKHR(device, swapchain, VK_NULL_HANDLE);

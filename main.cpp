@@ -61,17 +61,29 @@ int main()
     assert(!err);
     driver->Initialize(surface);
 
-    stbi_uc* pixels;
-    int w, h, channels;
-    char path[] = "/Users/redgogh/Desktop/Snipaste_2025-08-21_17-19-47.png";
-    pixels = stbi_load(path, &w, &h, &channels, STBI_rgb_alpha);
+    Pipeline pipeline;
+    driver->CreatePipeline("universal", &pipeline);
 
-    Texture2D texture;
-    driver->CreateTexture2D(w, h, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, &texture);
-    driver->WriteTexture2D(texture, w * h * 4, pixels);
+    VkCommandBuffer commandBuffer;
+    driver->CreateCommandBuffer(&commandBuffer);
 
-    stbi_image_free(pixels);
-    driver->DestroyTexture2D(texture);
+    Buffer vertexBuffer;
+    size_t vertexBufferSize = sizeof(vertices);
+    driver->CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &vertexBuffer);
+    driver->WriteBuffer(vertexBuffer, vertexBufferSize, vertices);
+
+    while (!glfwWindowShouldClose(hwindow)) {
+        glfwPollEvents();
+
+        driver->BeginCommandBuffer(commandBuffer);
+        driver->CmdBeginRendering(commandBuffer);
+        driver->CmdBindPipeline(commandBuffer, pipeline);
+        driver->CmdBindVertexBuffer(commandBuffer, vertexBuffer, 0);
+        driver->CmdDraw(commandBuffer, vertexBufferSize, 1);
+        driver->CmdEndRendering(commandBuffer);
+        driver->EndCommandBuffer(commandBuffer);
+        driver->SubmitPresentQueue(commandBuffer);
+    }
 
     glfwDestroyWindow(hwindow);
     glfwTerminate();

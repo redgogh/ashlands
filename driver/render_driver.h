@@ -38,7 +38,14 @@ public:
     void BeginCommandBuffer(VkCommandBuffer commandBuffer);
     void EndCommandBuffer(VkCommandBuffer commandBuffer);
     void CmdTextureMemoryBarrier(VkCommandBuffer commandBuffer, Texture2D texture, VkImageLayout newLayout);
-    void SubmitQueue(VkCommandBuffer commandBuffer, VkFence fence);
+    void CmdBeginRendering(VkCommandBuffer commandBuffer);
+    void CmdEndRendering(VkCommandBuffer commandBuffer);
+    void CmdBindPipeline(VkCommandBuffer commandBuffer, Pipeline pipeline);
+    void CmdBindVertexBuffer(VkCommandBuffer commandBuffer, Buffer buffer, VkDeviceSize offset);
+    void CmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t count, Buffer *pBuffers, VkDeviceSize *pOffsets);
+    void CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t firstVertex);
+    void SubmitQueue(VkCommandBuffer commandBuffer, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore, VkFence fence);
+    void SubmitPresentQueue(VkCommandBuffer commandBuffer);
 
     void RebuildSwapchain();
     void ReadBuffer(Buffer buffer, size_t size, void* data);
@@ -81,6 +88,11 @@ private:
     uint32_t imageCount = 0;
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
+    VkExtent2D swapchainExtent2D = {};
+    uint32_t currentFrame = 0;
+    std::vector<VkSemaphore> imageAvailableSemaphores;
+    std::vector<VkSemaphore> renderFinishedSemaphores;
+    VkFence imageAvailableFence = VK_NULL_HANDLE;
 
     uint32_t queueFamilyIndex = UINT32_MAX;
     VkSurfaceFormatKHR surfaceFormat = {};
