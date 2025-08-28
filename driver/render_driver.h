@@ -48,7 +48,7 @@ public:
     void SubmitQueue(VkCommandBuffer commandBuffer, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore, VkFence fence);
     void SubmitAndPresentFrame(VkCommandBuffer commandBuffer);
 
-    void AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *pFrameIndex);
+    void AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *pFlightIndex);
     void RebuildSwapchain();
     void ReadBuffer(Buffer buffer, size_t size, void* data);
     void WriteBuffer(Buffer buffer, size_t size, void* data);
@@ -97,13 +97,13 @@ private:
     std::vector<VkImageView> swapchainImageViews;
     VkExtent2D swapchainExtent2D = {};
     uint32_t imageIndex = 0;
+    std::vector<VkSemaphore> renderFinishedSemaphores;
 
     // Sync objects
-    uint32_t frameIndex = 0;
+    uint32_t flightIndex = 0;
     uint32_t MAX_FRAMES_IN_FLIGHT = 2;
     std::vector<VkCommandBuffer> frameCommandBuffers;
     std::vector<VkSemaphore> imageAvailableSemaphores;
-    std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
 
     uint32_t queueFamilyIndex = UINT32_MAX;

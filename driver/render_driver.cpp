@@ -489,7 +489,7 @@ DO_MEMORY_IAMGE_BARRIER_TAG:
 
 void RenderDriver::CmdBeginRendering(VkCommandBuffer commandBuffer)
 {
-    vkAcquireNextImageKHR(device, swapchain, UINT32_MAX, imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, &imageIndex);
+    vkAcquireNextImageKHR(device, swapchain, UINT32_MAX, imageAvailableSemaphores[flightIndex], VK_NULL_HANDLE, &imageIndex);
 
     VkRenderingAttachmentInfo colorRenderingAttachment = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -621,12 +621,12 @@ void RenderDriver::SubmitAndPresentFrame(VkCommandBuffer commandBuffer)
 {
     VkResult err;
 
-    SubmitQueue(commandBuffer, imageAvailableSemaphores[frameIndex], renderFinishedSemaphores[frameIndex], inFlightFences[frameIndex]);
+    SubmitQueue(commandBuffer, imageAvailableSemaphores[flightIndex], renderFinishedSemaphores[imageIndex], inFlightFences[flightIndex]);
 
     VkPresentInfoKHR presentInfo = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &renderFinishedSemaphores[frameIndex],
+        .pWaitSemaphores = &renderFinishedSemaphores[imageIndex],
         .swapchainCount = 1,
         .pSwapchains = &swapchain,
         .pImageIndices = &imageIndex,
@@ -700,15 +700,15 @@ void RenderDriver::DeviceWaitIdle()
     vkDeviceWaitIdle(device);
 }
 
-void RenderDriver::AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *pFrameIndex)
+void RenderDriver::AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *pFlightIndex)
 {
-    frameIndex = (frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+    flightIndex = (flightIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 
-    *pFrameIndex = frameIndex;
-    *pCommandBuffer = frameCommandBuffers[frameIndex];
+    *pFlightIndex = flightIndex;
+    *pCommandBuffer = frameCommandBuffers[flightIndex];
 
-    vkWaitForFences(device, 1, &inFlightFences[frameIndex], VK_TRUE, UINT32_MAX);
-    vkResetFences(device, 1, &inFlightFences[frameIndex]);
+    vkWaitForFences(device, 1, &inFlightFences[flightIndex], VK_TRUE, UINT32_MAX);
+    vkResetFences(device, 1, &inFlightFences[flightIndex]);
 
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &capabilities);
@@ -717,7 +717,6 @@ void RenderDriver::AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *
 
     if (currentExtent2D.width != swapchainExtent2D.width || currentExtent2D.height != swapchainExtent2D.height)
         _CreateSwapchain(swapchain);
-
 }
 
 void RenderDriver::RebuildSwapchain()
@@ -824,7 +823,10 @@ VkResult RenderDriver::_CreateDevice()
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
-        VK_KHR_MAINTENANCE3_EXTENSION_NAME
+        VK_KHR_MAINTENANCE3_EXTENSION_NAME,
+#ifdef __APPLE__
+        "VK_KHR_portability_subset"
+#endif
     };
 
     /* dynamic rendering */
@@ -881,9 +883,6 @@ VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
     if (minImageCount > surfaceCapabilities.maxImageCount)
         minImageCount = surfaceCapabilities.maxImageCount;
 
-    if (oldSwapchain == VK_NULL_HANDLE)
-        MAX_FRAMES_IN_FLIGHT = std::clamp(minImageCount - 1, 2u, 3u);
-
     swapchainExtent2D = surfaceCapabilities.currentExtent;
 
     uint32_t formatCount = 0;
@@ -926,7 +925,8 @@ VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
 
     swapchainImages.resize(minImageCount);
     swapchainImageViews.resize(minImageCount);
-
+    renderFinishedSemaphores.resize(minImageCount);
+    
     err = vkGetSwapchainImagesKHR(device, swapchain, &minImageCount, std::data(swapchainImages));
     VK_CHECK_ERROR(err);
 
@@ -951,6 +951,9 @@ VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
         imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
         err = vkCreateImageView(device, &imageViewCreateInfo, VK_NULL_HANDLE, &swapchainImageViews[i]);
+        VK_CHECK_ERROR(err);
+
+        err = _CreateSemaphore(&renderFinishedSemaphores[i]);
         VK_CHECK_ERROR(err);
     }
 
@@ -1028,6 +1031,7 @@ void RenderDriver::_DestroySwapchain()
 {
     for (uint32_t i = 0; i < minImageCount; i++) {
         vkDestroyImageView(device, swapchainImageViews[i], VK_NULL_HANDLE);
+        _DestroySemaphore(renderFinishedSemaphores[i]);
     }
 
     swapchainImages.clear();
@@ -1052,7 +1056,6 @@ VkResult RenderDriver::_InitSyncObjects()
     frameCommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
     imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         err = CreateCommandBuffer(&frameCommandBuffers[i]);
@@ -1062,9 +1065,6 @@ VkResult RenderDriver::_InitSyncObjects()
         VK_CHECK_ERROR(err);
 
         err = _CreateSemaphore(&imageAvailableSemaphores[i]);
-        VK_CHECK_ERROR(err);
-
-        err = _CreateSemaphore(&renderFinishedSemaphores[i]);
         VK_CHECK_ERROR(err);
     }
 
@@ -1078,7 +1078,6 @@ void RenderDriver::_DestroySyncObjects()
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         _DestroyFence(inFlightFences[i]);
         _DestroySemaphore(imageAvailableSemaphores[i]);
-        _DestroySemaphore(renderFinishedSemaphores[i]);
     }
 }
 
