@@ -291,8 +291,8 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipelin
     rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;            // 不丢弃几何体
     rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;            // 填充多边形方式点、线、面
     rasterizationStateCreateInfo.lineWidth = 1.0f;                              // 线宽
-    rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_NONE;                  // 背面剔除，可改 NONE 或 FRONT
-    rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;   // 前向面定义
+    rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;              // 背面剔除，可改 NONE 或 FRONT
+    rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;              // 前向面定义
     rasterizationStateCreateInfo.depthBiasEnable = VK_FALSE;                    // 不使用深度偏移
     rasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
     rasterizationStateCreateInfo.depthBiasClamp = 0.0f;
@@ -700,11 +700,10 @@ void RenderDriver::DeviceWaitIdle()
     vkDeviceWaitIdle(device);
 }
 
-void RenderDriver::AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *pFlightIndex)
+void RenderDriver::AcquiredNextFrame(VkCommandBuffer* pCommandBuffer)
 {
     flightIndex = (flightIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 
-    *pFlightIndex = flightIndex;
     *pCommandBuffer = frameCommandBuffers[flightIndex];
 
     vkWaitForFences(device, 1, &inFlightFences[flightIndex], VK_TRUE, UINT32_MAX);
@@ -1086,14 +1085,16 @@ void RenderDriver::_DestroySyncObjects()
 
 VmaMemoryUsage RenderDriver::_GuessMemoryUsage(VkBufferUsageFlags usage)
 {
+    if ((usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) && (usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT))
+        return VMA_MEMORY_USAGE_GPU_ONLY;
+
     if (usage & (VK_BUFFER_USAGE_TRANSFER_SRC_BIT))
         return VMA_MEMORY_USAGE_CPU_TO_GPU;
 
     if (usage & (VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
         | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
         | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-        | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-        | VK_BUFFER_USAGE_TRANSFER_DST_BIT))
+        | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
         return VMA_MEMORY_USAGE_GPU_ONLY;
 
     // 默认：CPU -> GPU

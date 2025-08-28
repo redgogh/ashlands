@@ -48,7 +48,7 @@ public:
     void SubmitQueue(VkCommandBuffer commandBuffer, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore, VkFence fence);
     void SubmitAndPresentFrame(VkCommandBuffer commandBuffer);
 
-    void AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *pFlightIndex);
+    void AcquiredNextFrame(VkCommandBuffer* pCommandBuffer);
     void RebuildSwapchain();
     void ReadBuffer(Buffer buffer, size_t size, void* data);
     void WriteBuffer(Buffer buffer, size_t size, void* data);

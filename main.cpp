@@ -20,8 +20,8 @@ struct Vertex
 
 Vertex vertices[] = {
     {{0.0, -0.5}, {1.0f, 0.0f, 0.0f}}, // 上
-    {{-0.5, 0.5}, {0.0f, 1.0f, 0.0f}}, // 左
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}} // 右
+    {{0.5, 0.5}, {0.0f, 1.0f, 0.0f}}, // 左
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}} // 右
 };
 
 int main()
@@ -69,13 +69,12 @@ int main()
     driver->CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &vertexBuffer);
     driver->WriteBuffer(vertexBuffer, vertexBufferSize, vertices);
 
-    uint32_t frameIndex;
     VkCommandBuffer commandBuffer;
 
     while (!glfwWindowShouldClose(hwindow)) {
         glfwPollEvents();
 
-        driver->AcquiredNextFrame(&commandBuffer, &frameIndex);
+        driver->AcquiredNextFrame(&commandBuffer);
 
         driver->BeginCommandBuffer(commandBuffer);
         driver->CmdBeginRendering(commandBuffer);
