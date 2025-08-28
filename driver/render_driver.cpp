@@ -262,7 +262,7 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipelin
     };
 
     VkVertexInputBindingDescription vertexInputBindingDescriptions[] = {
-        { 0, sizeof(float) * 5, VK_VERTEX_INPUT_RATE_VERTEX }
+        { 0, sizeof(float) * 6, VK_VERTEX_INPUT_RATE_VERTEX }
     };
 
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
@@ -291,7 +291,7 @@ VkResult RenderDriver::CreatePipeline(const char *shaderName, Pipeline* pPipelin
     rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;            // 不丢弃几何体
     rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;            // 填充多边形方式点、线、面
     rasterizationStateCreateInfo.lineWidth = 1.0f;                              // 线宽
-    rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;              // 背面剔除，可改 NONE 或 FRONT
+    rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_NONE;                  // 背面剔除，可改 NONE 或 FRONT
     rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;   // 前向面定义
     rasterizationStateCreateInfo.depthBiasEnable = VK_FALSE;                    // 不使用深度偏移
     rasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
@@ -498,7 +498,7 @@ void RenderDriver::CmdBeginRendering(VkCommandBuffer commandBuffer)
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         .clearValue = {
-            .color = { 0.0f, 0.0f, 0.0f, 1.0f }
+            .color = { 0.5f, 0.5f, 0.5f, 1.0f }
         }
     };
 
@@ -716,7 +716,7 @@ void RenderDriver::AcquiredNextFrame(VkCommandBuffer* pCommandBuffer, uint32_t *
     VkExtent2D currentExtent2D = capabilities.currentExtent;
 
     if (currentExtent2D.width != swapchainExtent2D.width || currentExtent2D.height != swapchainExtent2D.height)
-        _CreateSwapchain(swapchain);
+        RebuildSwapchain();
 }
 
 void RenderDriver::RebuildSwapchain()
@@ -874,6 +874,9 @@ VkResult RenderDriver::_CreateMemoryAllocator()
 VkResult RenderDriver::_CreateSwapchain(VkSwapchainKHR oldSwapchain)
 {
     VkResult err;
+
+    if (oldSwapchain != VK_NULL_HANDLE)
+        DeviceWaitIdle();
 
     VkSurfaceCapabilitiesKHR surfaceCapabilities = {};
     err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilities);

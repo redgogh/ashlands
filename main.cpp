@@ -19,9 +19,9 @@ struct Vertex
 };
 
 Vertex vertices[] = {
-    {{0.0, -0.5}, {1.0f, 0.0f, 0.0f}},
-    {{-0.5, 0.5}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    {{0.0, -0.5}, {1.0f, 0.0f, 0.0f}}, // 上
+    {{-0.5, 0.5}, {0.0f, 1.0f, 0.0f}}, // 左
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}} // 右
 };
 
 int main()
@@ -81,7 +81,7 @@ int main()
         driver->CmdBeginRendering(commandBuffer);
         driver->CmdBindPipeline(commandBuffer, pipeline);
         driver->CmdBindVertexBuffer(commandBuffer, vertexBuffer, 0);
-        driver->CmdDraw(commandBuffer, 3);
+        driver->CmdDraw(commandBuffer, ARRAY_SIZE(vertices));
         driver->CmdEndRendering(commandBuffer);
         driver->EndCommandBuffer(commandBuffer);
         driver->SubmitAndPresentFrame(commandBuffer);
