@@ -12,6 +12,8 @@
 
 #include <stb/stb_image.h>
 
+#include "rendering/camera/camera.h"
+
 struct Vertex
 {
     float pos[2];
@@ -69,16 +71,25 @@ int main()
     driver->CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &vertexBuffer);
     driver->WriteBuffer(vertexBuffer, vertexBufferSize, vertices);
 
+    Camera camera(0.0f, 0.0f, -5.0f);
+
     VkCommandBuffer commandBuffer;
 
     while (!glfwWindowShouldClose(hwindow)) {
         glfwPollEvents();
+
+        camera.Update();
+
+        glm::mat4 MVP(1.0f);
+
+        MVP = camera.GetProjectionMatrix() * camera.GetViewMatrix() * glm::mat4(1.0f);
 
         driver->AcquiredNextFrame(&commandBuffer);
 
         driver->BeginCommandBuffer(commandBuffer);
         driver->CmdBeginRendering(commandBuffer);
         driver->CmdBindPipeline(commandBuffer, pipeline);
+        driver->CmdPushConstants(commandBuffer, pipeline, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16, glm::value_ptr(MVP));
         driver->CmdBindVertexBuffer(commandBuffer, vertexBuffer, 0);
         driver->CmdDraw(commandBuffer, ARRAY_SIZE(vertices));
         driver->CmdEndRendering(commandBuffer);

@@ -20,6 +20,7 @@ ENDIF()
 ADD_EXECUTABLE(${PROJECT_NAME}
   "main.cpp"
   "driver/render_driver.cpp"
+  "rendering/camera/camera.cpp"
 )
 
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} PRIVATE

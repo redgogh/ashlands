@@ -44,6 +44,7 @@ public:
     void CmdBindPipeline(VkCommandBuffer commandBuffer, Pipeline pipeline);
     void CmdBindVertexBuffer(VkCommandBuffer commandBuffer, Buffer buffer, VkDeviceSize offset);
     void CmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t count, Buffer *pBuffers, VkDeviceSize *pOffsets);
+    void CmdPushConstants(VkCommandBuffer commandBuffer, Pipeline pipeline, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* data);
     void CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount);
     void SubmitQueue(VkCommandBuffer commandBuffer, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore, VkFence fence);
     void SubmitAndPresentFrame(VkCommandBuffer commandBuffer);
